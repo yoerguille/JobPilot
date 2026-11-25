@@ -9,3 +9,4 @@
 - Applied Tailwind to the search screen and added a reproducible CSS build. **View original posting** opens the listing in a new tab.
 - Translated the README and changelog into English and documented the English-language convention for code and project documentation in `AGENTS.md`.
 - Translated `AGENTS.md` into English and applied the existing English-language convention to that file.
+- Added Prima and Lodgify through the public Lever API. Searches use shared criteria, combine results with the same posting URL, and show per-board failures alongside results from available boards.

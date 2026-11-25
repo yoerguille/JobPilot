@@ -1,6 +1,7 @@
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from urllib.parse import parse_qsl, urlsplit
 
 from .offer import Offer
 
@@ -27,6 +28,7 @@ class Match:
     modality: str
     pending: bool
     priority: int
+    sources: tuple[str, ...]
 
 
 def normalize(value):
@@ -53,7 +55,7 @@ def modality_of(title, location, description):
     return "unknown"
 
 
-def geography_of(location, description, modality, region):
+def geography_of(location, description, modality, region, country_code):
     spanish_scope = normalize(region) in {"espana", "spain", "es"}
     aliases = SPAIN if spanish_scope else (region,)
     places = "|".join(re.escape(normalize(place)) for place in aliases)
@@ -64,7 +66,7 @@ def geography_of(location, description, modality, region):
         f"{location} {description}",
     ):
         return None
-    if re.search(target, location) or (spanish_scope and (location == "es" or re.search(COUNTRY_CODE, location))):
+    if re.search(target, location) or (spanish_scope and (country_code == "ES" or location == "es" or re.search(COUNTRY_CODE, location))):
         return f"Ubicación indicada en {region}", False
     if modality != "remote":
         return None
@@ -97,10 +99,10 @@ def find_matches(offers, criteria):
         hits = [term for term in terms if term in title_hits or contains(term, description)]
         if not hits:
             continue
-        modality = modality_of(title, location, description)
+        modality = offer.modality or modality_of(title, location, description)
         if criteria.modality not in {"all", modality}:
             continue
-        geography = geography_of(location, description, modality, criteria.location)
+        geography = geography_of(location, description, modality, criteria.location, offer.country_code)
         if geography is None:
             continue
         geography_label, pending = geography
@@ -109,5 +111,27 @@ def find_matches(offers, criteria):
             + 2 * bool(re.search(r"\b(?:junior|jr)\b", title))
             - 2 * bool(re.search(r"\b(?:senior|staff|principal|lead|manager|director)\b", title))
         )
-        results.append(Match(offer, ", ".join(hits), geography_label, labels[modality], pending, priority))
-    return sorted(results, key=lambda match: (match.pending, -match.priority, match.offer.title.casefold()))
+        results.append(Match(offer, ", ".join(hits), geography_label, labels[modality], pending, priority, (offer.source,)))
+    results.sort(key=lambda match: (match.pending, -match.priority, match.offer.title.casefold()))
+
+    unique = {}
+    for match in results:
+        key = posting_key(match.offer.url)
+        existing = unique.get(key)
+        if existing is None:
+            unique[key] = match
+        elif match.offer.source not in existing.sources:
+            unique[key] = replace(existing, sources=(*existing.sources, match.offer.source))
+    return list(unique.values())
+
+
+def posting_key(url):
+    parsed = urlsplit(url)
+    default_port = 443 if parsed.scheme == "https" else 80
+    port = None if parsed.port == default_port else parsed.port
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if not key.lower().startswith("utm_") and key.lower() not in {"gh_src", "lever-source"}
+    ]
+    return parsed.scheme, parsed.hostname, port, parsed.path, tuple(sorted(query, key=lambda item: item[0]))

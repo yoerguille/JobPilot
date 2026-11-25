@@ -9,3 +9,5 @@ class Offer:
     source: str
     url: str
     description: str = ""
+    modality: str = ""
+    country_code: str = ""
