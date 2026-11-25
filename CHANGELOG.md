@@ -1,9 +1,10 @@
-# Historial de cambios
+# Changelog
 
-## Sin publicar
+## Unreleased
 
-- Se definió el alcance del MVP para buscar ofertas de backend junior en España, con Python, Django, plantillas HTML y SQLite para la aplicación local.
-- Se implementó la etapa uno con criterios editables y persistentes, búsqueda en las bolsas públicas de Greenhouse de Typeform, Grafana Labs y Elastic, avisos de fallos por empresa y enlaces al anuncio original. Las ofertas remotas con elegibilidad geográfica ambigua quedan pendientes de confirmar.
-- Se incorporó este historial y se añadió a `AGENTS.md` la regla de actualizarlo con cada cambio del proyecto.
-- Se inició el control de versiones de la etapa uno validada y se excluyeron los entornos, dependencias instaladas, bases locales y archivos de credenciales.
-- Se aplicó Tailwind a la pantalla de búsqueda y se incorporó una compilación reproducible. «Ver anuncio original» abre la oferta en una pestaña nueva.
+- Defined the MVP scope for finding junior backend jobs in Spain, using Python, Django, HTML templates, and SQLite for the local app.
+- Implemented stage one with editable, persistent search criteria, public Greenhouse boards for Typeform, Grafana Labs, and Elastic, per-company error messages, and links to the original postings. Remote listings with unclear geographic eligibility are marked as pending confirmation.
+- Added this changelog and updated `AGENTS.md` to require a changelog entry for every project change.
+- Started version control for the validated first stage and excluded virtual environments, installed dependencies, local databases, and credential files.
+- Applied Tailwind to the search screen and added a reproducible CSS build. **View original posting** opens the listing in a new tab.
+- Translated the README and changelog into English and documented the English-language convention for code and project documentation in `AGENTS.md`.

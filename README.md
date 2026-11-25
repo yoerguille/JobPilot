@@ -1,10 +1,10 @@
 # JobPilot
 
-Aplicación local para buscar ofertas de backend en Greenhouse y abrir el anuncio original. Guarda un conjunto de criterios en SQLite para las siguientes visitas.
+A local app for finding backend jobs on Greenhouse and opening the original postings. It saves one set of search criteria in SQLite for future visits.
 
-## Arranque local
+## Run locally
 
-Desde la raíz del proyecto, con Python 3.10 o posterior. En este directorio compartido, ejecuta los comandos desde WSL.
+Use Python 3.10 or later. Run these commands from the project root. In the shared workspace, use WSL.
 
 ```sh
 python3 -m venv .venv
@@ -13,30 +13,29 @@ python3 -m venv .venv
 .venv/bin/python manage.py runserver
 ```
 
-Abre [JobPilot](http://127.0.0.1:8000/). **Guardar criterios** guarda el formulario sin consultar Greenhouse. **Buscar ofertas** guarda los criterios y consulta las bolsas configuradas. **Ver anuncio original** abre la oferta en una pestaña nueva.
+Open [JobPilot](http://127.0.0.1:8000/). **Save criteria** (`Guardar criterios`) saves the form without querying Greenhouse. **Search jobs** (`Buscar ofertas`) saves the criteria and queries the configured boards. **View original posting** (`Ver anuncio original`) opens the listing in a new tab.
 
-## Criterios y cobertura
+## Search criteria and coverage
 
-- La búsqueda empieza en España, con todas las modalidades y los términos backend, junior, Python, API e integraciones. Se puede cambiar la ubicación, la modalidad y la lista de términos separados por comas.
-- Coincidir con un término completo en el título o la descripción basta para pasar el filtro de texto. La ordenación da prioridad a la ubicación confirmada, las coincidencias en el título y las señales de nivel junior.
-- Para España se reconocen el país y un conjunto de ciudades y regiones habituales. Las ofertas remotas con ubicación genérica, como «Remote» o «EMEA», se muestran como pendientes de confirmar. Al elegir una modalidad concreta se incluyen solo anuncios donde se reconoce esa modalidad. La ubicación y la modalidad se extraen de texto libre, así que su cobertura depende de cómo se redacte el anuncio.
-- Edita `GREENHOUSE_BOARDS` en `jobpilot/settings.py` para cambiar el conjunto de empresas. La clave es el identificador de la bolsa pública y el valor es el nombre que se muestra. La selección inicial contiene Typeform, Grafana Labs y Elastic. Cada consulta usa un tiempo de espera de cinco segundos para operaciones de red y los fallos se muestran por empresa. [Documentación de Job Board API](https://docs.greenhouse.io/job-board.html)
+- The default search covers Spain and all work arrangements, using the terms backend, junior, Python, API, and integrations. You can change the location, work arrangement, and comma-separated search terms.
+- One whole-term match in the title or description is enough to pass the text filter. Results prioritize confirmed locations, title matches, and signs of junior seniority.
+- For Spain, the app recognizes the country and a set of common cities and regions. Remote listings with broad locations such as “Remote” or “EMEA” are marked as pending confirmation. Selecting a specific work arrangement includes only postings where the app recognizes that arrangement. Location and work arrangement are inferred from free text, so coverage depends on how each posting is written.
+- Edit `GREENHOUSE_BOARDS` in `jobpilot/settings.py` to change the set of companies. Each key is the public board identifier and each value is the name to display. The initial selection is Typeform, Grafana Labs, and Elastic. Each request uses a five-second network timeout, and failures are shown by company. [Greenhouse Job Board API documentation](https://docs.greenhouse.io/job-board.html)
 
-## Compilar los estilos
+## Build the styles
 
-El CSS compilado está incluido. Para reconstruirlo tras editar las plantillas o `assets/jobpilot.css`, usa Node.js 24 y npm desde la raíz del proyecto.
+The compiled CSS is included. To rebuild it after editing the templates or `assets/jobpilot.css`, use Node.js 24 and npm from the project root.
 
 ```sh
 npm ci
 npm run build:css
 ```
 
-
-## Pruebas
+## Tests
 
 ```sh
 .venv/bin/python manage.py test
 .venv/bin/python manage.py check
 ```
 
-La suite sustituye el acceso a la red por respuestas de prueba. Para comprobar la integración real, pulsa **Buscar ofertas** con conexión a Greenhouse y pulsa **Ver anuncio original** en un resultado.
+The test suite uses fixture responses in place of network requests. To verify the live integration, select **Search jobs** with access to Greenhouse and then select **View original posting** on a result.

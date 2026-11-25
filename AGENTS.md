@@ -16,4 +16,9 @@
 
 ## Historial de cambios
 
-- Registra cada cambio del proyecto en `CHANGELOG.md` como parte de la misma entrega. Añade una entrada breve en «Sin publicar» que describa el cambio.
+- Registra cada cambio del proyecto en `CHANGELOG.md` como parte de la misma entrega. Añade una entrada breve en «Unreleased» que describa el cambio.
+
+## Idioma
+
+- Escribe en inglés los identificadores, comentarios y docstrings del código, y la documentación del proyecto. Mantén este archivo en español.
+- Mantén en español la interfaz y los mensajes dirigidos al usuario.
