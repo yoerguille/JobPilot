@@ -22,5 +22,10 @@ GREENHOUSE_BOARDS = {
     "elastic": "Elastic",
 }
 GREENHOUSE_TIMEOUT = 5
+LEVER_BOARDS = {
+    "prima": ("Prima", "eu"),
+    "lodgify": ("Lodgify", "global"),
+}
+LEVER_TIMEOUT = 5
 
 STATIC_URL = "/static/"

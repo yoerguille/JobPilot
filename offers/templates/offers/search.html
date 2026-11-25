@@ -10,7 +10,7 @@
   <main class="mx-auto max-w-4xl px-5 py-10">
     <header>
       <h1 class="text-4xl font-bold tracking-tight">JobPilot</h1>
-      {% if companies %}<p class="mt-1 text-sm text-emerald-800">Greenhouse · {{ companies|join:", " }}</p>{% endif %}
+      {% for source, companies in source_companies.items %}<p class="mt-1 text-sm text-emerald-800">{{ source }} · {{ companies|join:", " }}</p>{% endfor %}
     </header>
     <section class="mt-6" aria-labelledby="criteria-heading">
       <h2 id="criteria-heading" class="mb-3 text-xl font-semibold">Criterios de búsqueda</h2>
@@ -39,9 +39,9 @@
       <section class="mt-6 space-y-3" aria-labelledby="results-heading">
         <h2 id="results-heading" class="text-xl font-semibold">Resultados{% if consulted %} ({{ matches|length }}){% endif %}</h2>
         {% if failures %}
-          <p>Empresas que no se pudieron consultar en Greenhouse</p>
+          <p>Bolsas que no se pudieron consultar</p>
           <ul class="list-disc pl-6">
-            {% for company, error in failures %}<li>{{ company }}. {{ error }}</li>{% endfor %}
+            {% for source, company, error in failures %}<li>{{ source }} · {{ company }}. {{ error }}</li>{% endfor %}
           </ul>
           <p>Vuelve a buscar para reintentar la consulta.</p>
         {% endif %}
@@ -49,7 +49,7 @@
           {% for match in matches %}
             <article class="space-y-1 rounded-xl border border-emerald-200 bg-white p-5">
               <h3 class="text-lg font-semibold">{{ match.offer.title }}</h3>
-              <p>{{ match.offer.company }} · {{ match.offer.location|default:"Ubicación sin indicar" }} · {{ match.offer.source }}</p>
+              <p>{{ match.offer.company }} · {{ match.offer.location|default:"Ubicación sin indicar" }} · {{ match.sources|join:" / " }}</p>
               <p class="text-sm {% if match.pending %}text-amber-900{% else %}text-emerald-800{% endif %}">{{ match.modality }} · {{ match.geography }}</p>
               <p class="text-sm text-emerald-800">Coincide con {{ match.reason }}</p>
               <a href="{{ match.offer.url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="mt-2 inline-block font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original<span class="sr-only"> de {{ match.offer.title }}</span></a>
@@ -59,7 +59,7 @@
         {% elif consulted %}
           <p>Ninguna oferta de las empresas consultadas coincide con estos criterios. Prueba con otros términos o una modalidad más amplia.</p>
         {% elif not failures %}
-          <p>Configura al menos una empresa de Greenhouse para buscar.</p>
+          <p>Configura al menos una bolsa para buscar.</p>
         {% endif %}
       </section>
     {% endif %}
