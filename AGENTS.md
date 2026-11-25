@@ -1,24 +1,24 @@
 # JobPilot
 
-## Alcance del MVP
+## MVP scope
 
-- Reúne ofertas de varias fuentes en una sola búsqueda con criterios guardados. Muestra la fuente, marca las ofertas nuevas desde la última búsqueda y enlaza al anuncio original para que el usuario decida si quiere aplicar.
-- Prioriza backend junior con Python, APIs e integraciones. Muestra identificadas las ofertas que piden dos o tres años de experiencia y señala cuándo el anuncio no indica cuánta experiencia exige.
-- Busca puestos en España en cualquier modalidad. Incluye ofertas remotas de empresas extranjeras si admiten trabajar desde España. Si el anuncio no aclara desde dónde se puede trabajar, muéstralo como pendiente de confirmar.
-- Deja la adaptación del CV, el envío de candidaturas y su seguimiento para etapas posteriores.
+- Gather job postings from multiple sources in a single search with saved criteria. Show the source, mark postings that are new since the last search, and link to the original posting so the user can decide whether to apply.
+- Prioritize junior backend roles involving Python, APIs, and integrations. Label postings that ask for two or three years of experience and flag postings that do not specify how much experience they require.
+- Search for roles in Spain across all work arrangements. Include remote openings at foreign companies if they allow working from Spain. If the posting does not make clear where the applicant can work from, mark eligibility as pending confirmation.
+- Leave CV tailoring, application submission, and application tracking for later stages.
 
-## Implementación
+## Implementation
 
-- Usa Python, Django, plantillas HTML y SQLite para la aplicación local.
-- Cada fuente debe tener su propio conector y devolver los mismos campos de oferta. Usa integraciones documentadas y mantén los criterios de búsqueda comunes a todas las fuentes.
-- Agrupa duplicados cuando la coincidencia sea clara. Si una fuente falla, conserva los resultados de las demás e indica qué fuente quedó sin consultar.
-- Usa reglas explícitas para el filtrado y la priorización. Muestra una razón breve de por qué aparece cada oferta y señala la información que falte.
+- Use Python, Django, HTML templates, and SQLite for the local app.
+- Give each source its own connector and return the same posting fields from each connector. Use documented integrations and apply the same search criteria across sources.
+- Group duplicates when the match is clear. If a source fails, retain results from the other sources and identify the source that could not be consulted.
+- Use explicit rules for filtering and prioritization. Briefly explain why each posting appears and flag any missing information.
 
-## Historial de cambios
+## Changelog
 
-- Registra cada cambio del proyecto en `CHANGELOG.md` como parte de la misma entrega. Añade una entrada breve en «Unreleased» que describa el cambio.
+- Record every project change in `CHANGELOG.md` as part of the same delivery. Add a brief entry under “Unreleased” describing the change.
 
-## Idioma
+## Language
 
-- Escribe en inglés los identificadores, comentarios y docstrings del código, y la documentación del proyecto. Mantén este archivo en español.
-- Mantén en español la interfaz y los mensajes dirigidos al usuario.
+- Write code identifiers, comments, docstrings, and project documentation, including this file, in English.
+- Keep the interface and user-facing messages in Spanish.

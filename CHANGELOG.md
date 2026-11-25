@@ -8,3 +8,4 @@
 - Started version control for the validated first stage and excluded virtual environments, installed dependencies, local databases, and credential files.
 - Applied Tailwind to the search screen and added a reproducible CSS build. **View original posting** opens the listing in a new tab.
 - Translated the README and changelog into English and documented the English-language convention for code and project documentation in `AGENTS.md`.
+- Translated `AGENTS.md` into English and applied the existing English-language convention to that file.
