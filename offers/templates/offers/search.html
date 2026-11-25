@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JobPilot · Buscar ofertas</title>
+  <style>
+    :root { color-scheme: light; font: 100%/1.5 system-ui, sans-serif; color: #17302d; background: #f1f5f2; }
+    * { box-sizing: border-box; }
+    main { max-width: 56rem; margin: auto; padding: 2.5rem 1.25rem; }
+    h1 { font-size: 2.5rem; margin: 0; letter-spacing: -.055em; }
+    h2 { margin: 0 0 1rem; }
+    h3 { margin: 0; font-size: 1.1rem; }
+    p { margin: .4rem 0; }
+    section { margin-top: 1.5rem; }
+    form, article { background: #fff; border: 1px solid #cad9d1; border-radius: .75rem; padding: 1.15rem; }
+    article { margin: .65rem 0; }
+    .fields, .actions { display: flex; gap: .8rem; flex-wrap: wrap; }
+    .fields > div { flex: 1; min-width: 10rem; }
+    label { display: block; font-weight: 650; }
+    input, select, button { font: inherit; }
+    input, select { display: block; width: 100%; padding: .55rem; border: 1px solid #728981; border-radius: .35rem; }
+    .actions { margin-top: 1rem; }
+    button { padding: .55rem .9rem; border: 1px solid #195c4b; border-radius: .35rem; color: #195c4b; background: #fff; cursor: pointer; font-weight: 650; }
+    button:first-child { color: #fff; background: #195c4b; }
+    a { color: #195c4b; text-underline-offset: .17em; }
+    .note, .helptext { color: #405b53; font-size: .9rem; }
+    .pending, .errorlist { color: #804100; }
+    :focus-visible { outline: 3px solid #1668ae; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>JobPilot</h1>
+      {% if companies %}<p class="note">Greenhouse · {{ companies|join:", " }}</p>{% endif %}
+    </header>
+    <section aria-labelledby="criteria-heading">
+      <h2 id="criteria-heading">Criterios de búsqueda</h2>
+      <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div>
+          {{ form.keywords.label_tag }}
+          {{ form.keywords }}
+          <p class="helptext" id="{{ form.keywords.auto_id }}_helptext">{{ form.keywords.help_text }}</p>
+          {{ form.keywords.errors }}
+        </div>
+        <div class="fields">
+          {% for field in form %}{% if field.name != "keywords" %}
+            <div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+          {% endif %}{% endfor %}
+        </div>
+        <div class="actions">
+          <button type="submit" name="action" value="search">Buscar ofertas</button>
+          <button type="submit" name="action" value="save">Guardar criterios</button>
+        </div>
+      </form>
+    </section>
+
+    {% if searched %}
+      <section aria-labelledby="results-heading">
+        <h2 id="results-heading">Resultados{% if consulted %} ({{ matches|length }}){% endif %}</h2>
+        {% if failures %}
+          <p>Empresas que no se pudieron consultar en Greenhouse</p>
+          <ul>
+            {% for company, error in failures %}<li>{{ company }}. {{ error }}</li>{% endfor %}
+          </ul>
+          <p>Vuelve a buscar para reintentar la consulta.</p>
+        {% endif %}
+        {% if matches %}
+          {% for match in matches %}
+            <article>
+              <h3><a href="{{ match.offer.url }}">{{ match.offer.title }}</a></h3>
+              <p>{{ match.offer.company }} · {{ match.offer.location|default:"Ubicación sin indicar" }} · {{ match.offer.source }}</p>
+              <p class="{% if match.pending %}pending{% else %}note{% endif %}">{{ match.modality }} · {{ match.geography }}</p>
+              <p class="note">Coincide con {{ match.reason }}</p>
+            </article>
+          {% endfor %}
+        {% elif consulted %}
+          <p>Ninguna oferta de las empresas consultadas coincide con estos criterios. Prueba con otros términos o una modalidad más amplia.</p>
+        {% elif not failures %}
+          <p>Configura al menos una empresa de Greenhouse para buscar.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+  </main>
+</body>
+</html>
