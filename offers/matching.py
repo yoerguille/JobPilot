@@ -26,7 +26,7 @@ KEYWORD_VARIANTS = {
     "api": ("api", "apis"),
     "integraciones": ("integracion", "integraciones", "integration", "integrations"),
 }
-JUNIOR_TITLE = r"\b(?:junior|jr|entry[ -]level|graduate)\b"
+JUNIOR_TITLE = r"\b(?:junior|jr|entry[ -]level|graduates?)\b"
 SENIOR_TITLE = r"\b(?:senior|sr|staff|principal|lead|manager|director)\b"
 
 

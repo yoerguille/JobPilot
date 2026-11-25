@@ -188,6 +188,17 @@ class MultiSourceSearchTests(TestCase):
         self.assertEqual(refreshed.context["matches"], resumed.context["matches"])
         self.assertEqual(SeenPosting.objects.count(), 3)
 
+    def test_graduates_title_receives_junior_priority(self):
+        graduate_job = self.lever_job | {
+            "text": "Math, Physics & Engineering Graduates",
+            "hostedUrl": self.posting_url.replace("42", "43"),
+        }
+        response = self.run_search(lever=[graduate_job])
+        matches = response.context["matches"]
+        self.assertEqual(matches[0]["offer"]["title"], graduate_job["text"])
+        self.assertEqual(matches[0]["ranking_reason"], "perfil junior en el título")
+        self.assertGreater(matches[0]["priority"], matches[1]["priority"])
+
     def test_experience_labels_and_junior_ranking(self):
         senior = self.greenhouse_job | {
             "title": "Senior Backend Python Engineer",
