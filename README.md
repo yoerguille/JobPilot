@@ -18,12 +18,20 @@ Open [JobPilot](http://127.0.0.1:8000/). **Save criteria** (`Guardar criterios`)
 ## Search criteria and coverage
 
 - The default search covers Spain and all work arrangements, using the terms backend, junior, Python, API, and integrations. You can change the location, work arrangement, and comma-separated search terms.
-- One whole-term match in the title or description is enough to pass the text filter. Results prioritize confirmed locations, title matches, and signs of junior seniority.
+- One whole-term match in the title or description is enough to pass the text filter. Results prioritize confirmed locations, relevant technical and title matches, junior titles, and clearly stated experience around two or three years. Senior titles receive a lower score. The result explains the matching terms and any seniority signals used.
 - For Spain, the app recognizes the country and a set of common cities and regions. Remote listings with broad locations such as “Remote” or “EMEA” are marked as pending confirmation. Selecting a specific work arrangement includes only postings where the app recognizes that arrangement. The app uses structured source data when available and falls back to free text, so coverage depends on the information each posting provides.
 - Edit `GREENHOUSE_BOARDS` in `jobpilot/settings.py` to change the set of companies. Each key is the public board identifier and each value is the name to display. The initial selection is Typeform, Grafana Labs, and Elastic. [Greenhouse Job Board API documentation](https://docs.greenhouse.io/job-board.html)
 - Edit `LEVER_BOARDS` in the same file to configure Lever. Each key is the public site identifier, and each value contains the company name and API region (`global` or `eu`). The initial boards are Lodgify (global) and Prima (EU). [Lever Postings API documentation](https://github.com/lever/postings-api)
 - Both sources use the same search criteria. Results sharing a posting URL after removing known tracking parameters and fragments are shown once with their matching sources. Openings with different URLs stay separate even when their titles match.
 - Each board request uses a five-second network timeout by default. If a board fails, the app identifies its source and company and shows any matches from successful boards.
+
+## New and previous results
+
+Each posting is recorded the first time it matches a search, using the same canonical URL as deduplication. The first search marks all its matches as new. A posting remains new within the saved results of the search that first found it. On later searches it appears as previous when it matches again, even if a board was temporarily unavailable or the criteria changed.
+
+Use **All** (`Todas`), **New** (`Nuevas`), or **Previous** (`Anteriores`) to filter the latest results. Reloading or changing this filter does not query the sources again. A failed board's matches may be absent from the latest results, while previously recorded first-seen dates are preserved.
+
+Experience labels distinguish explicit years and ranges, missing years, and ambiguous statements. A posting with conflicting or unclear numbers is flagged for confirmation. The labels reflect the wording recognized in the posting.
 
 ## Build the styles
 

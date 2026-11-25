@@ -10,3 +10,13 @@ class Criteria(models.Model):
         ("hybrid", "Híbrida"),
         ("onsite", "Presencial"),
     ])
+
+
+class SeenPosting(models.Model):
+    key = models.CharField(max_length=64, primary_key=True)
+    first_seen_at = models.DateTimeField()
+    first_search = models.UUIDField()
+
+
+class SearchSnapshot(models.Model):
+    data = models.JSONField()

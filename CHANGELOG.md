@@ -10,3 +10,4 @@
 - Translated the README and changelog into English and documented the English-language convention for code and project documentation in `AGENTS.md`.
 - Translated `AGENTS.md` into English and applied the existing English-language convention to that file.
 - Added Prima and Lodgify through the public Lever API. Searches use shared criteria, combine results with the same posting URL, and show per-board failures alongside results from available boards.
+- Added persistent first-seen dates and new and previous filters for the latest search. Refined technical and junior relevance and added labels for stated, missing, or unclear years of experience.

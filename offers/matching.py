@@ -3,6 +3,7 @@ import unicodedata
 from dataclasses import dataclass, replace
 from urllib.parse import parse_qsl, urlsplit
 
+from .experience import experience_of
 from .offer import Offer
 
 SPAIN = (
@@ -19,6 +20,15 @@ BROAD_REMOTE = r"\b(?:emea|europe|europa|eu|european union|worldwide|anywhere|gl
 REMOTE_LABEL = r"\b(?:fully|100|work|from|anywhere|worldwide|based|trabajo|desde|todo el mundo|position|role)\b"
 COUNTRY_CODE = r"(?:\(es\)|,\s*es$|\bes[- ]remote\b|\bremote[- ]es\b)"
 
+KEYWORD_VARIANTS = {
+    "backend": ("backend", "back-end", "back end"),
+    "junior": ("junior", "jr"),
+    "api": ("api", "apis"),
+    "integraciones": ("integracion", "integraciones", "integration", "integrations"),
+}
+JUNIOR_TITLE = r"\b(?:junior|jr|entry[ -]level|graduate)\b"
+SENIOR_TITLE = r"\b(?:senior|sr|staff|principal|lead|manager|director)\b"
+
 
 @dataclass(frozen=True)
 class Match:
@@ -29,6 +39,8 @@ class Match:
     pending: bool
     priority: int
     sources: tuple[str, ...]
+    experience: str
+    ranking_reason: str
 
 
 def normalize(value):
@@ -37,8 +49,9 @@ def normalize(value):
 
 
 def contains(term, value):
-    pattern = re.escape(normalize(term))
-    return bool(re.search(rf"(?<!\w){pattern}(?!\w)", value))
+    term = normalize(term)
+    pattern = "|".join(map(re.escape, KEYWORD_VARIANTS.get(term, (term,))))
+    return bool(re.search(rf"(?<!\w)(?:{pattern})(?!\w)", value))
 
 
 def modality_of(title, location, description):
@@ -48,7 +61,7 @@ def modality_of(title, location, description):
                 return modality
     if re.search(rf"{HYBRID}\s+(?:work|role|position|model|working|schedule|de trabajo)", description):
         return "hybrid"
-    if re.search(rf"(?:{REMOTE_LABEL}\s+{REMOTE}|{REMOTE}\s+{REMOTE_LABEL})", description):
+    if re.search(rf"(?:{REMOTE_LABEL}\s+{REMOTE}|{REMOTE}\s+(?:in|en|{REMOTE_LABEL}))", description):
         return "remote"
     if re.search(rf"{ONSITE}\s+(?:role|position|only|en oficina)", description):
         return "onsite"
@@ -78,7 +91,7 @@ def geography_of(location, description, modality, region, country_code):
     if re.search(r"\w", rest) and not broad:
         return None
     if re.search(
-        rf"\b(?:based in|located in|work from|remote (?:in|from)|remot[oa] (?:en|desde)"
+        rf"\b(?:based in|located in|work (?:remotely )?from|remote (?:in|from)|remot[oa] (?:en|desde)"
         rf"|trabajar desde|ubicad[oa] en|eligible countries include)\s+{target}",
         description,
     ):
@@ -106,12 +119,22 @@ def find_matches(offers, criteria):
         if geography is None:
             continue
         geography_label, pending = geography
-        priority = (
-            2 * len(title_hits) + len(hits)
-            + 2 * bool(re.search(r"\b(?:junior|jr)\b", title))
-            - 2 * bool(re.search(r"\b(?:senior|staff|principal|lead|manager|director)\b", title))
-        )
-        results.append(Match(offer, ", ".join(hits), geography_label, labels[modality], pending, priority, (offer.source,)))
+        experience = experience_of(description)
+        senior = bool(re.search(SENIOR_TITLE, title))
+        junior = not senior and bool(re.search(JUNIOR_TITLE, title))
+        technical_hits = sum(normalize(term) in {"backend", "python", "api", "apis", "integraciones"} for term in hits)
+        priority = 2 * len(title_hits) + len(hits) + technical_hits + 7 * junior + 4 * experience.preferred_range - 6 * senior
+        ranking_reasons = []
+        if junior:
+            ranking_reasons.append("perfil junior en el título")
+        if experience.preferred_range:
+            ranking_reasons.append("experiencia en el rango priorizado")
+        if senior:
+            ranking_reasons.append("perfil sénior en el título")
+        results.append(Match(
+            offer, ", ".join(hits), geography_label, labels[modality], pending, priority, (offer.source,),
+            experience.label, " · ".join(ranking_reasons),
+        ))
     results.sort(key=lambda match: (match.pending, -match.priority, match.offer.title.casefold()))
 
     unique = {}
