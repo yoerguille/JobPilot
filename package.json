@@ -1,0 +1,11 @@
+{
+  "name": "jobpilot",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/jobpilot.css -o ./offers/static/offers/jobpilot.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.5",
+    "tailwindcss": "4.3.5"
+  }
+}

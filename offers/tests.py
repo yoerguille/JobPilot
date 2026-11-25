@@ -61,7 +61,7 @@ class SearchTests(TestCase):
         self.assertEqual(matches[0].offer.title, "Backend Junior")
         self.assertEqual(matches[0].reason, "Python, API")
         self.assertTrue(matches[-1].pending)
-        self.assertContains(response, f'href="{url}"')
+        self.assertContains(response, f'href="{url}" target="_blank" rel="noopener"')
         self.assertContains(response, "Sin conexión")
         self.assertContains(response, "Pendiente de confirmar")
         self.assertEqual(Criteria.objects.get().keywords, "Python, API")

@@ -1,0 +1,23 @@
+@import "tailwindcss" source(none);
+@source "../offers/templates";
+
+@layer base {
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-sky-700;
+  }
+}
+
+@layer components {
+  .criteria-form label {
+    @apply block font-semibold;
+  }
+
+  .criteria-form input:not([type="hidden"]),
+  .criteria-form select {
+    @apply mt-1 block w-full rounded-md border border-emerald-800/50 bg-white px-3 py-2;
+  }
+
+  .criteria-form .errorlist {
+    @apply mt-1 text-sm text-amber-900;
+  }
+}

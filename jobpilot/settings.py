@@ -6,7 +6,7 @@ SECRET_KEY = os.environ.get("JOBPILOT_SECRET_KEY", "django-insecure-jobpilot-loc
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
-INSTALLED_APPS = ["offers"]
+INSTALLED_APPS = ["django.contrib.staticfiles", "offers"]
 MIDDLEWARE = ["django.middleware.csrf.CsrfViewMiddleware"]
 ROOT_URLCONF = "jobpilot.urls"
 TEMPLATES = [{"BACKEND": "django.template.backends.django.DjangoTemplates", "APP_DIRS": True}]
@@ -22,3 +22,5 @@ GREENHOUSE_BOARDS = {
     "elastic": "Elastic",
 }
 GREENHOUSE_TIMEOUT = 5
+
+STATIC_URL = "/static/"
