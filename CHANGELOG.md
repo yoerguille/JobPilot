@@ -25,3 +25,4 @@
 - Added a local CV profile with editable contact details, skills, experience, projects, and education.
 - Added a single-column CV template and a preview that uses the saved profile.
 - Added editable CV drafts for search results, with profile-based suggestions and local approval.
+- Added saved CV versions and downloadable PDFs that preserve the approved content.

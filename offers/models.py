@@ -96,3 +96,18 @@ class CVOfferDraft(models.Model):
     offer_title = models.TextField()
     company = models.TextField()
     content = models.JSONField()
+
+
+class CVVersion(models.Model):
+    posting_key = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=64)
+    offer_title = models.TextField()
+    company = models.TextField()
+    content = models.JSONField()
+    pdf = models.BinaryField(editable=False)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["posting_key", "fingerprint"], name="unique_cv_version_content"),
+        ]

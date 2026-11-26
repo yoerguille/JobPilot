@@ -10,9 +10,22 @@
   <main class="mx-auto max-w-4xl px-5 py-10">
     <a href="{% url 'cv_profile' %}" class="underline underline-offset-4">Volver al perfil de CV</a>
     {% if target %}
-      <h1 class="mt-6 text-xl font-semibold">{% if approved %}Borrador aprobado{% else %}Adaptar CV a la oferta{% endif %}</h1>
+      <h1 class="mt-6 text-xl font-semibold">{% if version %}Versión guardada{% elif approved %}Borrador aprobado{% else %}Adaptar CV a la oferta{% endif %}</h1>
       <p>{{ target.title }} · {{ target.company }}</p>
       {% if approved and can_edit %}<p class="mt-2"><a href="?editar=1" class="underline underline-offset-4">Editar borrador</a></p>{% endif %}
+      {% if approved %}
+        <form method="post" action="{% url 'save_cv_version' posting %}" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="fingerprint" value="{{ draft_fingerprint }}">
+          <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900">Guardar versión</button>
+        </form>
+      {% elif version %}
+        <p class="mt-2">Guardada el {{ version.created_at|date:"SHORT_DATETIME_FORMAT" }}</p>
+        <nav class="mt-2 flex flex-wrap gap-4" aria-label="Opciones de versión">
+          <a href="{% url 'download_cv_version' version.pk %}" class="font-semibold underline underline-offset-4">Descargar PDF</a>
+          <a href="{% url 'cv_versions' %}" class="underline underline-offset-4">Ver versiones guardadas</a>
+        </nav>
+      {% endif %}
     {% else %}
       <h1 class="mt-6 text-xl font-semibold">Vista previa del CV</h1>
     {% endif %}

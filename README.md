@@ -4,7 +4,7 @@ A local app for finding backend jobs on Greenhouse and Lever and opening the ori
 
 ## Roadmap
 
-1. **CV tailoring and generation.** The base profile, template preview, and offer-specific drafts are available. The next stages will add PDF export, saved versions, and a link from each application to the exact version sent.
+1. **CV tailoring and generation.** The base profile, template preview, offer-specific drafts, saved versions, and PDF export are available. The next stage will link each application to the exact version sent.
 2. **Hiring news.** Add a separate view for technology hiring announcements in Spain. Show the headline, date, source, short excerpt, and link to the original article. Mark new items and use a thumbnail when the source provides one for that use. Evaluate [Xataka's RSS](https://www.xataka.com/xataka/suscribete-a-xataka) and [RTVE's Economy RSS](https://www.rtve.es/rss/) first. [RTVE's employment portal](https://www.rtve.es/aqui-hay-trabajo/), [NoticiasTrabajo](https://www.noticiastrabajo.es/), and [Europa Press Economía](https://www.europapress.es/economia/) are candidates pending verification of a suitable feed or API. Link to the original company announcement when available.
 
 The InfoJobs integration is on hold while its developer portal is closed to new application registrations. Adzuna is a candidate for a search trial to assess Spanish coverage and the detail its API returns. Automated application submission remains outside the current roadmap.
@@ -55,6 +55,8 @@ Open **CV profile** (`Perfil de CV`) from the search page. Enter your contact de
 After saving, select **Preview CV** (`Ver vista previa del CV`) to see a single-column CV with the latest saved information. Empty fields and sections are omitted.
 
 Select **Tailor CV** (`Adaptar CV`) on a search result. JobPilot suggests entries based on words shared by the offer and your saved profile. Review the selection, edit the summary, and choose **Update preview** (`Actualizar vista previa`) to check the result. **Approve draft** (`Aprobar borrador`) saves one approved draft per posting. Editing the base profile leaves that draft intact until you approve it again.
+
+On an approved draft, choose **Save version** (`Guardar versión`) to preserve the content and its PDF in the local database. Select **Download PDF** (`Descargar PDF`) from its detail page or the **Saved versions** (`Versiones guardadas`) list. Saving an unchanged draft reopens its existing version. Changes to the profile or to the approved draft leave previous versions intact.
 
 ## Build the styles
 

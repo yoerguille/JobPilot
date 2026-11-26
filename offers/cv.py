@@ -1,15 +1,18 @@
+import json
 import re
+from hashlib import sha256
 
 from django import forms
 from django.db import transaction
 from django.forms import inlineformset_factory
-from django.http import Http404
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods, require_safe
+from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
+from .cv_pdf import render_cv_pdf
 from .matching import normalize, posting_identity
-from .models import CVEducation, CVExperience, CVOfferDraft, CVProfile, CVProject, SearchSnapshot
+from .models import CVEducation, CVExperience, CVOfferDraft, CVProfile, CVProject, CVVersion, SearchSnapshot
 
 
 class CVProfileForm(forms.ModelForm):
@@ -165,7 +168,8 @@ def cv_offer_draft(request, posting):
     if request.method == "GET" and approved and (request.GET.get("editar") != "1" or offer is None):
         return render(request, "offers/cv_preview.html", {
             **approved.content, "target": {"title": approved.offer_title, "company": approved.company},
-            "approved": True, "can_edit": offer is not None,
+            "approved": True, "can_edit": offer is not None, "draft_fingerprint": draft_fingerprint(approved),
+            "posting": posting,
         })
     if offer is None:
         raise Http404("La oferta ya no está en los resultados de la última búsqueda.")
@@ -191,3 +195,47 @@ def cv_offer_draft(request, posting):
     return render(request, "offers/cv_preview.html", {
         **form.content(profile, selection), "target": offer, "draft_form": form,
     })
+
+
+def draft_fingerprint(draft):
+    payload = json.dumps([draft.offer_title, draft.company, draft.content], sort_keys=True)
+    return sha256(payload.encode()).hexdigest()
+
+
+@require_POST
+def save_cv_version(request, posting):
+    draft = get_object_or_404(CVOfferDraft, pk=posting)
+    fingerprint = draft_fingerprint(draft)
+    if request.POST.get("fingerprint") != fingerprint:
+        return HttpResponse("El borrador ha cambiado. Vuelve a abrirlo antes de guardar la versión.", status=409)
+    version, _ = CVVersion.objects.get_or_create(
+        posting_key=posting, fingerprint=fingerprint,
+        defaults={
+            "offer_title": draft.offer_title, "company": draft.company, "content": draft.content,
+            "pdf": lambda: render_cv_pdf(draft.content),
+        },
+    )
+    return redirect("cv_version", pk=version.pk)
+
+
+@require_safe
+def cv_versions(request):
+    versions = CVVersion.objects.defer("content", "pdf").order_by("-created_at", "-pk")
+    return render(request, "offers/cv_versions.html", {"versions": versions})
+
+
+@require_safe
+def cv_version(request, pk):
+    version = get_object_or_404(CVVersion.objects.defer("pdf"), pk=pk)
+    return render(request, "offers/cv_preview.html", {
+        **version.content, "target": {"title": version.offer_title, "company": version.company},
+        "version": version,
+    })
+
+
+@require_safe
+def download_cv_version(request, pk):
+    version = get_object_or_404(CVVersion.objects.only("pdf"), pk=pk)
+    response = HttpResponse(version.pdf, content_type="application/pdf")
+    response.headers["Content-Disposition"] = f'attachment; filename="CV-{version.pk}.pdf"'
+    return response

@@ -11,7 +11,7 @@ from .connectors.common import BoardError
 from .connectors.greenhouse import fetch_board
 from .experience import experience_of
 from .matching import normalize, posting_identity
-from .models import Application, Criteria, CVProfile, SeenPosting
+from .models import Application, Criteria, CVProfile, CVVersion, SeenPosting
 from .offer import Offer
 
 
@@ -323,14 +323,34 @@ class MultiSourceSearchTests(TestCase):
         self.assertEqual(preview.context["profile"]["summary"], "Edited summary")
         self.assertEqual([entry["id"] for entry in preview.context["projects"]], [other.pk])
         self.assertRedirects(self.client.post(url, data | {"action": "approve"}), url)
+        save_url = reverse("save_cv_version", args=[posting_identity(offer["absolute_url"])])
+        first_fingerprint = self.client.get(url).context["draft_fingerprint"]
+        first = self.client.post(save_url, {"fingerprint": first_fingerprint})
+        version = CVVersion.objects.defer("pdf").get()
+        version_url = reverse("cv_version", args=[version.pk])
+        pdf_url = reverse("download_cv_version", args=[version.pk])
+        self.assertRedirects(first, version_url)
+        pdf = self.client.get(pdf_url)
+        self.assertEqual(pdf.headers["Content-Type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF-"))
+        self.assertRedirects(self.client.post(save_url, {"fingerprint": first_fingerprint}), version_url)
+        self.assertEqual(CVVersion.objects.count(), 1)
+        self.assertRedirects(self.client.post(url, data | {"action": "approve", "summary": "New draft"}), url)
+        self.assertEqual(self.client.post(save_url, {"fingerprint": first_fingerprint}).status_code, 409)
+        second_fingerprint = self.client.get(url).context["draft_fingerprint"]
+        self.assertEqual(self.client.post(save_url, {"fingerprint": second_fingerprint}).status_code, 302)
+        self.assertEqual(CVVersion.objects.count(), 2)
         profile.summary = "Changed base profile"
         profile.save(update_fields=["summary"])
         self.run_search(greenhouse=[], lever=[])
         approved = self.client.get(url)
         self.assertContains(approved, "Borrador aprobado")
-        self.assertContains(approved, "Edited summary")
+        self.assertContains(approved, "New draft")
         self.assertNotContains(approved, "Changed base profile")
         self.assertContains(approved, "Illustration")
+        self.assertContains(self.client.get(version_url), "Edited summary")
+        self.assertEqual(self.client.get(pdf_url).content, pdf.content)
+        self.assertContains(self.client.get(reverse("cv_versions")), version_url)
 
     def test_one_provider_can_fail_without_losing_the_other(self):
         for failed_url, provider, company, remaining in [
