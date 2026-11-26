@@ -10,8 +10,8 @@ from .applications import record_application
 from .connectors.common import BoardError
 from .connectors.greenhouse import fetch_board
 from .experience import experience_of
-from .matching import normalize
-from .models import Criteria, SeenPosting
+from .matching import normalize, posting_identity
+from .models import Application, Criteria, SeenPosting
 from .offer import Offer
 
 
@@ -186,6 +186,33 @@ class MultiSourceSearchTests(TestCase):
                 self.assertEqual(response.context["consulted"], 1)
                 self.assertEqual(response.context["matches"][0]["sources"], [remaining])
                 self.assertContains(response, f"{provider} · {company}. El servicio respondió con HTTP 503.")
+
+    def test_mark_grouped_result_as_applied_and_open_details(self):
+        response = self.run_search()
+        mark_url = reverse("mark_application", args=[posting_identity(self.posting_url)])
+        self.assertContains(response, "Marcar como aplicada")
+        self.assertContains(response, mark_url)
+        self.assertEqual(self.client.get(mark_url).status_code, 405)
+
+        detail = self.client.post(mark_url, follow=True)
+        application = Application.objects.get()
+        detail_url = reverse("application_detail", args=[application.pk])
+        self.assertRedirects(detail, detail_url)
+        self.assertContains(detail, "Python Engineer")
+        self.assertContains(detail, "Fecha de aplicación")
+        self.assertContains(detail, "Ver anuncio original en Greenhouse")
+        self.assertContains(detail, "Ver anuncio original en Lever")
+        self.assertRedirects(self.client.post(mark_url), detail_url)
+        self.assertEqual(application.status_history.count(), 1)
+        self.assertEqual(Application.objects.count(), 1)
+
+        later = self.run_search(greenhouse=[])
+        self.assertContains(later, "Aplicada")
+        self.assertContains(later, detail_url)
+        self.assertNotContains(later, "Marcar como aplicada")
+        self.run_search(greenhouse=[], lever=[])
+        self.assertEqual(self.client.post(mark_url).status_code, 404)
+        self.assertEqual(self.client.get(detail_url).status_code, 200)
 
     @override_settings(LEVER_BOARDS={"example": ("Company A", "eu")})
     def test_cross_source_duplicate_keeps_both_links_and_history(self):

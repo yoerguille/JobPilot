@@ -72,6 +72,18 @@
               {% else %}
                 <a href="{{ match.offer.url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="mt-2 inline-block font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original<span class="sr-only"> de {{ match.offer.title }}</span></a>
               {% endif %}
+              {% if match.application_ids %}
+                <p class="mt-2 text-sm"><strong>Aplicada</strong>
+                  {% for application_id in match.application_ids %}
+                    · <a href="{% url 'application_detail' application_id %}" class="underline underline-offset-4">Ver candidatura{% if match.application_ids|length > 1 %} {{ forloop.counter }}{% endif %}</a>
+                  {% endfor %}
+                </p>
+              {% else %}
+                <form method="post" action="{% url 'mark_application' match.posting_identity %}" class="mt-2">
+                  {% csrf_token %}
+                  <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Marcar como aplicada</button>
+                </form>
+              {% endif %}
             </article>
           {% endfor %}
           <span id="original-link-hint" class="sr-only">Se abre en una pestaña nueva.</span>
