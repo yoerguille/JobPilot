@@ -108,6 +108,8 @@ def find_matches(offers, criteria):
     labels = {"remote": "Remota", "hybrid": "Híbrida", "onsite": "Presencial", "unknown": "Modalidad sin indicar"}
     for offer in offers:
         title, location, description = map(normalize, (offer.title, offer.location, offer.description))
+        if re.search(SENIOR_TITLE, title):
+            continue
         title_hits = [term for term in terms if contains(term, title)]
         hits = [term for term in terms if term in title_hits or contains(term, description)]
         if not hits:
@@ -120,17 +122,14 @@ def find_matches(offers, criteria):
             continue
         geography_label, pending = geography
         experience = experience_of(description)
-        senior = bool(re.search(SENIOR_TITLE, title))
-        junior = not senior and bool(re.search(JUNIOR_TITLE, title))
+        junior = bool(re.search(JUNIOR_TITLE, title))
         technical_hits = sum(normalize(term) in {"backend", "python", "api", "apis", "integraciones"} for term in hits)
-        priority = 2 * len(title_hits) + len(hits) + technical_hits + 7 * junior + 4 * experience.preferred_range - 6 * senior
+        priority = 2 * len(title_hits) + len(hits) + technical_hits + 7 * junior + 4 * experience.preferred_range
         ranking_reasons = []
         if junior:
             ranking_reasons.append("perfil junior en el título")
         if experience.preferred_range:
             ranking_reasons.append("experiencia en el rango priorizado")
-        if senior:
-            ranking_reasons.append("perfil sénior en el título")
         results.append(Match(
             offer, ", ".join(hits), geography_label, labels[modality], pending, priority, (offer.source,),
             experience.label, " · ".join(ranking_reasons),

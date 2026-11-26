@@ -12,3 +12,4 @@
 - Added Prima and Lodgify through the public Lever API. Searches use shared criteria, combine results with the same posting URL, and show per-board failures alongside results from available boards.
 - Added persistent first-seen dates and new and previous filters for the latest search. Refined technical and junior relevance and added labels for stated, missing, or unclear years of experience.
 - Recognized plural graduate job titles as a junior ranking signal.
+- Excluded postings with senior titles from search results.

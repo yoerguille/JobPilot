@@ -199,7 +199,7 @@ class MultiSourceSearchTests(TestCase):
         self.assertEqual(matches[0]["ranking_reason"], "perfil junior en el título")
         self.assertGreater(matches[0]["priority"], matches[1]["priority"])
 
-    def test_experience_labels_and_junior_ranking(self):
+    def test_experience_labels_junior_ranking_and_senior_exclusion(self):
         senior = self.greenhouse_job | {
             "title": "Senior Backend Python Engineer",
             "absolute_url": self.posting_url.replace("42", "43"),
@@ -218,7 +218,7 @@ class MultiSourceSearchTests(TestCase):
         response = self.run_search(greenhouse=[senior, ambiguous, junior], lever=[])
         self.assertEqual(response.context["matches"][0]["offer"]["title"], "Junior Python Developer")
         self.assertContains(response, "Experiencia indicada: 2–3 años")
-        self.assertContains(response, "Experiencia indicada: 5 años")
+        self.assertNotContains(response, senior["title"])
         self.assertContains(response, "Experiencia en años por confirmar")
         self.assertContains(response, "perfil junior en el título")
 
