@@ -8,7 +8,10 @@
 </head>
 <body class="min-h-screen bg-emerald-50 font-sans text-emerald-950">
   <main class="mx-auto max-w-4xl px-5 py-10">
-    <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+    <nav class="flex flex-wrap gap-4" aria-label="Navegación">
+      <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+      <a href="{% url 'application_list' %}" class="underline underline-offset-4">Mis candidaturas</a>
+    </nav>
     <article class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5">
       <h1 class="text-xl font-semibold">{{ application.title }}</h1>
       <p>{{ application.company }} · {{ application.location|default:"Ubicación sin indicar" }}</p>

@@ -16,6 +16,30 @@ from .offer import Offer
 
 
 class ApplicationTrackingTests(TestCase):
+    def test_application_list_filters_and_links_to_saved_details(self):
+        list_url = reverse("application_list")
+        self.assertContains(self.client.get(reverse("search")), list_url)
+        self.assertContains(self.client.get(list_url), "Todavía no has guardado ninguna candidatura.")
+        applied = Application.objects.create(title="Backend Python", company="Example", original_links=[])
+        interview = Application.objects.create(
+            title="API Developer", company="Another", original_links=[], status="interview",
+        )
+
+        response = self.client.get(list_url)
+        self.assertEqual(list(response.context["applications"]), [interview, applied])
+        detail_url = reverse("application_detail", args=[interview.pk])
+        self.assertContains(response, detail_url)
+        self.assertContains(self.client.get(detail_url), list_url)
+
+        filtered = self.client.get(list_url, {"estado": "interview"})
+        self.assertContains(filtered, "API Developer")
+        self.assertNotContains(filtered, "Backend Python")
+        self.assertContains(filtered, 'value="interview" selected')
+        empty = self.client.get(list_url, {"estado": "rejected"})
+        self.assertContains(empty, "No tienes candidaturas en este estado.")
+        invalid = self.client.get(list_url, {"estado": "invalid"})
+        self.assertEqual(list(invalid.context["applications"]), [interview, applied])
+
     def test_records_application_and_recognizes_grouped_posting_links(self):
         original = "https://careers.example.org/jobs/42"
         alternative = "https://jobs.lever.co/example/backend"
