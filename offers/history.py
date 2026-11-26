@@ -1,12 +1,10 @@
-import json
 from dataclasses import asdict
-from hashlib import sha256
 from uuid import uuid4
 
 from django.db import transaction
 from django.utils import formats, timezone
 
-from .matching import posting_key
+from .matching import posting_identity
 from .models import SearchSnapshot, SeenPosting
 
 
@@ -16,7 +14,7 @@ def save_search(criteria, matches, failures, consulted):
     search_id = uuid4()
     grouped_keys = [
         (match, {
-            sha256(json.dumps(posting_key(url)).encode()).hexdigest()
+            posting_identity(url)
             for _, url in match.links
         })
         for match in matches
