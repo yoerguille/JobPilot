@@ -14,3 +14,4 @@
 - Recognized plural graduate job titles as a junior ranking signal.
 - Excluded postings with senior titles from search results.
 - Grouped clear duplicate vacancies across posting URLs, retained their original source links, and shared first-seen dates with newly discovered links.
+- Documented MVP completion, the roadmap for application tracking, CV generation, and hiring news, and the branch workflow for future changes.

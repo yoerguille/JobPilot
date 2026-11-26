@@ -1,6 +1,14 @@
 # JobPilot
 
-A local app for finding backend jobs on Greenhouse and Lever and opening the original postings. It saves one set of search criteria in SQLite for future visits.
+A local app for finding backend jobs on Greenhouse and Lever and opening the original postings. The job-search MVP is complete. It saves search criteria in SQLite, flags new matches, and groups clear duplicates while keeping their source links.
+
+## Roadmap
+
+1. **Application tracking.** Save an offer by marking it as applied. Keep a dated status history in a dedicated view, including interviews, technical assessments, and rejections.
+2. **CV tailoring and generation.** Create a base profile with verified experience, projects, and education. Generate and review a CV for an offer using an agreed structure and predefined styles. Export and save versions, and link each application to the exact version sent.
+3. **Hiring news.** Add a separate view for technology hiring announcements in Spain. Show the headline, date, source, short excerpt, and link to the original article. Mark new items and use a thumbnail when the source provides one for that use. Evaluate [Xataka's RSS](https://www.xataka.com/xataka/suscribete-a-xataka) and [RTVE's Economy RSS](https://www.rtve.es/rss/) first. [RTVE's employment portal](https://www.rtve.es/aqui-hay-trabajo/), [NoticiasTrabajo](https://www.noticiastrabajo.es/), and [Europa Press Economía](https://www.europapress.es/economia/) are candidates pending verification of a suitable feed or API. Link to the original company announcement when available.
+
+The InfoJobs integration is on hold while its developer portal is closed to new application registrations. Adzuna is a candidate for a search trial to assess Spanish coverage and the detail its API returns. Automated application submission remains outside the current roadmap.
 
 ## Run locally
 
