@@ -63,6 +63,25 @@ class ApplicationTrackingTests(TestCase):
         invalid = self.client.get(list_url, {"estado": "invalid"})
         self.assertEqual(list(invalid.context["applications"]), [interview, applied])
 
+    def test_status_update_from_list_returns_to_same_filter_and_records_change(self):
+        application = record_application({"offer": {
+            "title": "Backend Developer", "company": "Example", "location": "Madrid",
+            "source": "Greenhouse", "url": "https://careers.example.org/jobs/42",
+        }})
+        list_url = reverse("application_list")
+        detail_url = reverse("application_detail", args=[application.pk])
+        self.assertContains(self.client.get(list_url), "Ver candidatura")
+        self.assertContains(self.client.get(list_url), f'action="{detail_url}"')
+        response = self.client.post(detail_url, {
+            "status": "interview", "return_to": "application_list", "estado": "applied",
+        }, follow=True)
+        self.assertRedirects(response, f"{list_url}?estado=applied")
+        self.assertContains(response, "No tienes candidaturas en este estado.")
+        self.assertContains(self.client.get(list_url, {"estado": "interview"}), application.title)
+        self.assertEqual(
+            list(application.status_history.values_list("status", flat=True)), ["applied", "interview"],
+        )
+
     def test_records_application_and_recognizes_grouped_posting_links(self):
         original = "https://careers.example.org/jobs/42"
         alternative = "https://jobs.lever.co/example/backend"
@@ -291,8 +310,33 @@ class MultiSourceSearchTests(TestCase):
         self.assertContains(grouped, "Ver anuncio original en Greenhouse")
         self.assertContains(grouped, "Ver anuncio original en Lever")
         self.assertContains(grouped, lever["hostedUrl"])
+
+        grouped_match = next(match for match in grouped.context["matches"] if len(match["links"]) == 2)
+        mark_url = reverse("mark_application", args=[posting_identity(grouped_match["offer"]["url"])])
+        self.client.post(mark_url)
+        application = Application.objects.get()
+        detail_url = reverse("application_detail", args=[application.pk])
+        self.assertRedirects(self.client.post(detail_url, {"status": "interview"}), detail_url)
+
         lever_only = self.run_search(greenhouse=[], lever=[lever])
         self.assertEqual(lever_only.context["previous_count"], 1)
+        self.assertContains(lever_only, detail_url)
+        alias_url = reverse("mark_application", args=[posting_identity(lever["hostedUrl"])])
+        self.assertRedirects(self.client.post(alias_url), detail_url)
+        self.assertEqual(Application.objects.count(), 1)
+
+        self.run_search(greenhouse=[], lever=[])
+        next_visit = self.client_class()
+        applications = next_visit.get(reverse("application_list"), {"estado": "interview"})
+        self.assertContains(applications, detail_url)
+        detail = next_visit.get(detail_url)
+        self.assertContains(detail, greenhouse["absolute_url"].replace("&", "&amp;"))
+        self.assertContains(detail, lever["hostedUrl"])
+        self.assertContains(detail, "<time datetime=", count=2)
+        self.assertEqual(
+            list(application.status_history.values_list("status", flat=True)),
+            ["applied", "interview"],
+        )
 
     def test_matching_vacancy_references_group_distinct_posting_urls(self):
         first = self.greenhouse_job | {"requisition_id": "PAY-42"}

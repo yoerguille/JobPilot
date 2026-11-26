@@ -45,7 +45,7 @@ Experience labels distinguish explicit years and ranges, missing years, and ambi
 
 After applying on the original site, select **Mark as applied** (`Marcar como aplicada`) on the search result. JobPilot opens the saved application with the application date and original source links. Future results with a known posting link show **Applied** (`Aplicada`) and link to the same record.
 
-Open **My applications** (`Mis candidaturas`) from the search page or an application detail page. The list shows the newest applications first, with their company, location, application date, and current status. Filter by status or open a title to see the original links.
+Open **My applications** (`Mis candidaturas`) from the search page or an application detail page. The list shows the newest applications first, with their company, location, application date, and current status. Filter by status, update the status from a card, or select **View application** (`Ver candidatura`) to open its details and original links. The list keeps its current filter after a status update.
 
 To update an application, select any status on its detail page and choose **Save status** (`Guardar estado`). The page shows a chronological status history with the date and time of each change. Saving the current status again leaves its history intact.
 
@@ -66,3 +66,5 @@ npm run build:css
 ```
 
 The test suite uses fixture responses in place of network requests. To verify the live integration, select **Search jobs** with access to Greenhouse and Lever and then select **View original posting** on a result from each source.
+
+The application tracking tests cover the full workflow from finding a vacancy to recording it, updating its status, and reopening it from the filtered application list. They also verify that a grouped vacancy with several original links creates one application and that its links and status history remain available after the vacancy disappears from search results.
