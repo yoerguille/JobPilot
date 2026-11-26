@@ -21,4 +21,46 @@
   .criteria-form .errorlist {
     @apply mt-1 text-sm text-amber-900;
   }
+
+  .cv-sheet {
+    @apply rounded-xl border border-emerald-200 bg-white p-5 sm:p-10;
+    color: #172222;
+    overflow-wrap: anywhere;
+  }
+
+  .cv-sheet h2 {
+    @apply text-4xl font-bold tracking-tight;
+  }
+
+  .cv-headline {
+    @apply mt-1 text-lg;
+  }
+
+  .cv-contact {
+    @apply mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm;
+  }
+
+  .cv-sheet section {
+    @apply mt-6;
+  }
+
+  .cv-sheet h3 {
+    @apply mb-2 border-b border-emerald-200 pb-1 text-lg font-semibold;
+  }
+
+  .cv-sheet h4 {
+    @apply font-semibold;
+  }
+
+  .cv-sheet a {
+    @apply underline underline-offset-4;
+  }
+
+  .cv-entry + .cv-entry {
+    @apply mt-3;
+  }
+
+  .cv-description {
+    white-space: pre-line;
+  }
 }

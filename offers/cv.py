@@ -3,7 +3,7 @@ from django.db import transaction
 from django.forms import inlineformset_factory
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_safe
 
 from .models import CVEducation, CVExperience, CVProfile, CVProject
 
@@ -46,7 +46,8 @@ EducationFormSet = inlineformset_factory(
 
 @require_http_methods(["GET", "POST"])
 def cv_profile(request):
-    profile = CVProfile.objects.filter(pk=1).first() or CVProfile()
+    saved_profile = CVProfile.objects.filter(pk=1).first()
+    profile = saved_profile or CVProfile()
     data = request.POST if request.method == "POST" else None
     form = CVProfileForm(data, instance=profile)
     sections = [
@@ -69,4 +70,20 @@ def cv_profile(request):
             item.fields["DELETE"].label = "Eliminar esta entrada"
     return render(request, "offers/cv_profile.html", {
         "form": form, "sections": sections, "saved": request.GET.get("guardado") == "1" and data is None,
+        "has_profile": saved_profile is not None,
+    })
+
+
+@require_safe
+def cv_preview(request):
+    profile = CVProfile.objects.filter(pk=1).first()
+    if profile is None:
+        return render(request, "offers/cv_preview.html")
+
+    return render(request, "offers/cv_preview.html", {
+        "profile": profile,
+        "experience": profile.experience.order_by("pk"),
+        "projects": profile.projects.order_by("pk"),
+        "education": profile.education.order_by("pk"),
+        "skills": [skill.strip() for skill in profile.skills.splitlines() if skill.strip()],
     })
