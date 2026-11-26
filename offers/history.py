@@ -36,7 +36,6 @@ def save_search(criteria, matches, failures, consulted):
             for key in keys if key not in seen
         )
         result = asdict(match)
-        del result["offer"]["description"]
         result.update(
             is_new=first_search == search_id,
             first_seen=formats.date_format(timezone.localtime(first_seen), "SHORT_DATE_FORMAT"),

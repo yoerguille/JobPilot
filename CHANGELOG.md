@@ -24,3 +24,4 @@
 - Documented the required branch, review, commit, push, and pull request sequence for each implementation stage.
 - Added a local CV profile with editable contact details, skills, experience, projects, and education.
 - Added a single-column CV template and a preview that uses the saved profile.
+- Added editable CV drafts for search results, with profile-based suggestions and local approval.

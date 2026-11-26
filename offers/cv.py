@@ -1,11 +1,15 @@
+import re
+
 from django import forms
 from django.db import transaction
 from django.forms import inlineformset_factory
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_safe
 
-from .models import CVEducation, CVExperience, CVProfile, CVProject
+from .matching import normalize, posting_identity
+from .models import CVEducation, CVExperience, CVOfferDraft, CVProfile, CVProject, SearchSnapshot
 
 
 class CVProfileForm(forms.ModelForm):
@@ -85,5 +89,105 @@ def cv_preview(request):
         "experience": profile.experience.order_by("pk"),
         "projects": profile.projects.order_by("pk"),
         "education": profile.education.order_by("pk"),
-        "skills": [skill.strip() for skill in profile.skills.splitlines() if skill.strip()],
+        "skills": profile_skills(profile),
+    })
+
+
+def profile_skills(profile):
+    return list(dict.fromkeys(skill.strip() for skill in profile.skills.splitlines() if skill.strip()))
+
+
+def draft_keywords(text):
+    return {word for word in re.findall(r"\w+", normalize(text)) if len(word) >= 5 or word in {"api", "apis", "sql"}}
+
+
+class CVOfferDraftForm(forms.Form):
+    summary = forms.CharField(
+        label="Resumen profesional", required=False, widget=forms.Textarea(attrs={"rows": 3}),
+    )
+
+    def __init__(self, data, profile, offer):
+        super().__init__(data, initial={"summary": profile.summary})
+        self.entries = {
+            "experience": list(profile.experience.order_by("pk").values("id", "role", "company", "period", "description")),
+            "projects": list(profile.projects.order_by("pk").values("id", "name", "url", "description")),
+            "education": list(profile.education.order_by("pk").values(
+                "id", "qualification", "institution", "period", "description",
+            )),
+            "skills": [{"id": skill, "name": skill} for skill in profile_skills(profile)],
+        }
+        labels = {
+            "experience": ("Experiencia", ("role", "company")),
+            "projects": ("Proyectos", ("name",)),
+            "education": ("Formación", ("qualification", "institution")),
+            "skills": ("Habilidades", ("name",)),
+        }
+        keywords = draft_keywords(f'{offer["title"]} {offer.get("description", "")}')
+        for section, entries in self.entries.items():
+            if not entries:
+                continue
+            label, title_fields = labels[section]
+            scored = []
+            for entry in entries:
+                title = " · ".join(entry[field] for field in title_fields)
+                score = len(keywords & draft_keywords(f'{title} {entry.get("description", "")}'))
+                scored.append((score, str(entry["id"]), title))
+            scored.sort(key=lambda item: -item[0])
+            by_id = {str(entry["id"]): entry for entry in entries}
+            self.entries[section] = [by_id[key] for _, key, _ in scored]
+            self.fields[section] = forms.MultipleChoiceField(
+                label=label, required=False, widget=forms.CheckboxSelectMultiple,
+                choices=[(key, title) for _, key, title in scored],
+                error_messages={"invalid_choice": "Selecciona una entrada válida del perfil."},
+            )
+            self.initial[section] = [key for score, key, _ in scored if score or not scored[0][0]]
+
+    def content(self, profile, selection):
+        contact_fields = ("full_name", "headline", "location", "email", "phone", "portfolio_url")
+        content = {
+            "profile": {field: getattr(profile, field) for field in contact_fields} | {"summary": selection["summary"]},
+        }
+        for section, entries in self.entries.items():
+            selected = set(selection.get(section, []))
+            content[section] = [entry for entry in entries if str(entry["id"]) in selected]
+        content["skills"] = [entry["name"] for entry in content["skills"]]
+        return content
+
+
+@require_http_methods(["GET", "POST"])
+def cv_offer_draft(request, posting):
+    approved = CVOfferDraft.objects.filter(pk=posting).first()
+    snapshot = SearchSnapshot.objects.filter(pk=1).first()
+    offer = next((
+        match["offer"] for match in snapshot.data["matches"]
+        if posting_identity(match["offer"]["url"]) == posting
+    ), None) if snapshot else None
+    if request.method == "GET" and approved and (request.GET.get("editar") != "1" or offer is None):
+        return render(request, "offers/cv_preview.html", {
+            **approved.content, "target": {"title": approved.offer_title, "company": approved.company},
+            "approved": True, "can_edit": offer is not None,
+        })
+    if offer is None:
+        raise Http404("La oferta ya no está en los resultados de la última búsqueda.")
+    profile = CVProfile.objects.filter(pk=1).first()
+    if profile is None:
+        return render(request, "offers/cv_preview.html", {"target": offer})
+
+    data = request.POST if request.method == "POST" else None
+    form = CVOfferDraftForm(data, profile, offer)
+    if approved:
+        form.initial["summary"] = approved.content["profile"]["summary"]
+        for section in ("experience", "projects", "education"):
+            form.initial[section] = [str(entry["id"]) for entry in approved.content[section]]
+        form.initial["skills"] = approved.content["skills"]
+    selection = form.initial
+    if form.is_valid():
+        selection = form.cleaned_data
+        if request.POST.get("action") == "approve":
+            CVOfferDraft.objects.update_or_create(pk=posting, defaults={
+                "offer_title": offer["title"], "company": offer["company"], "content": form.content(profile, selection),
+            })
+            return redirect("cv_offer_draft", posting=posting)
+    return render(request, "offers/cv_preview.html", {
+        **form.content(profile, selection), "target": offer, "draft_form": form,
     })

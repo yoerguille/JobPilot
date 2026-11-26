@@ -76,6 +76,7 @@
               {% else %}
                 <a href="{{ match.offer.url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="mt-2 inline-block font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original<span class="sr-only"> de {{ match.offer.title }}</span></a>
               {% endif %}
+              <p class="mt-2"><a href="{% url 'cv_offer_draft' match.posting_identity %}" class="font-semibold underline underline-offset-4">Adaptar CV<span class="sr-only"> a {{ match.offer.title }}</span></a></p>
               {% if match.application_ids %}
                 <p class="mt-2 text-sm"><strong>Aplicada</strong>
                   {% for application_id in match.application_ids %}
