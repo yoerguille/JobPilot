@@ -16,9 +16,14 @@
 
 ## Workflow
 
-- Create a new Git branch from the latest main branch before editing project files.
-
 - Record every project change in `CHANGELOG.md` as part of the same delivery. Add a brief entry under “Unreleased” describing the change.
+
+Follow this sequence for every implementation stage:
+
+1. Create a new Git branch from the latest `main` before editing project files.
+2. Implement and verify the stage on that branch. Share the changes and verification results for review before committing.
+3. After the user approves the changes, commit them, push the branch, and open a pull request targeting `main`.
+4. Merge through the pull request after the user approves the merge and any required checks pass. Start the next stage from the updated `main`.
 
 ## Language
 
