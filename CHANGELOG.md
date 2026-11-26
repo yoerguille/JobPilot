@@ -23,3 +23,4 @@
 - Added explicit application detail links and status controls to the application list.
 - Documented the required branch, review, commit, push, and pull request sequence for each implementation stage.
 - Added a local CV profile with editable contact details, skills, experience, projects, and education.
+- Added a single-column CV template and a preview that uses the saved profile.

@@ -10,6 +10,7 @@
   <main class="mx-auto max-w-4xl px-5 py-10">
     <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
     <h1 class="mt-6 text-4xl font-bold tracking-tight">Perfil de CV</h1>
+    {% if has_profile %}<p class="mt-2"><a href="{% url 'cv_preview' %}" class="font-semibold underline underline-offset-4">Ver vista previa del CV</a></p>{% endif %}
     {% if saved %}<p class="mt-2 font-semibold" role="status">Perfil guardado.</p>{% endif %}
     <form method="post" class="criteria-form mt-6 space-y-4">
       {% csrf_token %}

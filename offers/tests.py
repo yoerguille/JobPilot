@@ -16,6 +16,14 @@ from .offer import Offer
 
 
 class CVProfileTests(TestCase):
+    def test_preview_skips_empty_sections_and_prompts_for_a_missing_profile(self):
+        url = reverse("cv_preview")
+        self.assertContains(self.client.get(url), "Guarda tu perfil de CV")
+        CVProfile.objects.create(pk=1, full_name="Example Name")
+        response = self.client.get(url)
+        self.assertContains(response, "Example Name")
+        self.assertNotContains(response, "<h3>")
+
     def test_creates_and_edits_profile_with_repeatable_entries(self):
         url = reverse("cv_profile")
         self.assertContains(self.client.get(reverse("search")), url)
@@ -38,6 +46,11 @@ class CVProfileTests(TestCase):
         }
         response = self.client.post(url, data, follow=True)
         self.assertContains(response, "Perfil guardado.")
+        preview_url = reverse("cv_preview")
+        self.assertContains(response, preview_url)
+        preview = self.client.get(preview_url)
+        for text in ("Example Name", "Backend Developer", "Example API", "Example School", "<li>Django</li>"):
+            self.assertContains(preview, text)
         profile = CVProfile.objects.get()
         self.assertEqual(profile.experience.get().role, "Backend Developer")
         self.assertEqual(profile.projects.get().name, "Example API")
@@ -62,6 +75,9 @@ class CVProfileTests(TestCase):
         self.assertEqual(profile.full_name, "Updated Name")
         self.assertEqual(profile.experience.get().role, "Python Developer")
         self.assertFalse(profile.projects.exists())
+        preview = self.client.get(preview_url)
+        self.assertContains(preview, "Updated Name")
+        self.assertNotContains(preview, "Example API")
 
 
 class ApplicationTrackingTests(TestCase):
