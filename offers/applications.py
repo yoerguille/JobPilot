@@ -1,7 +1,7 @@
 from django.db import transaction
 
 from .matching import posting_identity
-from .models import Application, ApplicationPosting
+from .models import Application, ApplicationPosting, ApplicationStatus, ApplicationStatusEvent
 
 
 class ConflictingApplications(Exception):
@@ -43,3 +43,11 @@ def record_application(match):
         ApplicationPosting(key=key, application=application) for key in keys - known.keys()
     ])
     return application
+
+
+@transaction.atomic
+def change_application_status(application_id, status):
+    status = ApplicationStatus(status)
+    updated = Application.objects.filter(pk=application_id).exclude(status=status).update(status=status)
+    if updated:
+        ApplicationStatusEvent.objects.create(application_id=application_id, status=status)

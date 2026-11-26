@@ -22,6 +22,28 @@
         {% endfor %}
       </ul>
     </article>
+    <section class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="status-heading">
+      <h2 id="status-heading" class="text-lg font-semibold">Cambiar estado</h2>
+      <form method="post" class="criteria-form space-y-3">
+        {% csrf_token %}
+        <div>
+          {{ status_form.status.label_tag }}
+          {{ status_form.status }}
+          {{ status_form.status.errors }}
+        </div>
+        <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Guardar estado</button>
+      </form>
+    </section>
+    <section class="mt-6 space-y-3" aria-labelledby="history-heading">
+      <h2 id="history-heading" class="text-lg font-semibold">Historial de estados</h2>
+      <ol class="space-y-1">
+        {% for event in application.status_history.all %}
+          <li><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at|date:"SHORT_DATETIME_FORMAT" }}</time> · {{ event.get_status_display }}</li>
+        {% empty %}
+          <li>Todavía no hay cambios registrados.</li>
+        {% endfor %}
+      </ol>
+    </section>
   </main>
 </body>
 </html>
