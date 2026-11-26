@@ -8,8 +8,10 @@ from django.urls import reverse
 
 from .connectors.common import BoardError
 from .connectors.greenhouse import fetch_board
+from .experience import experience_of
+from .matching import normalize
+from .models import Criteria, SeenPosting
 from .offer import Offer
-from .models import Criteria
 
 
 @override_settings(GREENHOUSE_BOARDS={"example": "Ejemplo", "unavailable": "Sin conexión"}, LEVER_BOARDS={})
@@ -56,16 +58,16 @@ class SearchTests(TestCase):
             patch("offers.views.greenhouse.fetch_board", side_effect=get_board),
             patch("offers.connectors.common.urlopen", return_value=io.BytesIO(json.dumps({"jobs": jobs}).encode())) as request,
         ):
-            response = self.client.post(self.url, self.criteria | {"action": "search"})
+            response = self.client.post(self.url, self.criteria | {"action": "search"}, follow=True)
 
         request.assert_called_once_with(
             "https://boards-api.greenhouse.io/v1/boards/example/jobs?content=true", timeout=5
         )
         matches = response.context["matches"]
         self.assertEqual(len(matches), 4)
-        self.assertEqual(matches[0].offer.title, "Backend Junior")
-        self.assertEqual(matches[0].reason, "Python, API")
-        self.assertTrue(matches[-1].pending)
+        self.assertEqual(matches[0]["offer"]["title"], "Backend Junior")
+        self.assertEqual(matches[0]["reason"], "Python, API")
+        self.assertTrue(matches[-1]["pending"])
         self.assertContains(response, f'href="{url}" target="_blank" rel="noopener"')
         self.assertContains(response, "Sin conexión")
         self.assertContains(response, "Pendiente de confirmar")
@@ -75,12 +77,12 @@ class SearchTests(TestCase):
         with patch("offers.views.greenhouse.fetch_board", return_value=[
             Offer("Python Developer", "Ejemplo", "Madrid", "Greenhouse", "https://example.org/jobs/1"),
         ]):
-            response = self.client.post(self.url, self.criteria | {"modality": "remote", "action": "search"})
+            response = self.client.post(self.url, self.criteria | {"modality": "remote", "action": "search"}, follow=True)
         self.assertContains(response, "Ninguna oferta")
 
     def test_all_boards_fail(self):
         with patch("offers.views.greenhouse.fetch_board", side_effect=BoardError("Servicio no disponible.")):
-            response = self.client.post(self.url, self.criteria | {"action": "search"})
+            response = self.client.post(self.url, self.criteria | {"action": "search"}, follow=True)
         self.assertContains(response, "Vuelve a buscar")
         self.assertNotContains(response, "Ninguna oferta")
 
@@ -125,7 +127,7 @@ class MultiSourceSearchTests(TestCase):
             return io.BytesIO(json.dumps(payloads[url]).encode())
 
         with patch("offers.connectors.common.urlopen", side_effect=request) as fetch:
-            response = self.client.post(reverse("search"), self.criteria)
+            response = self.client.post(reverse("search"), self.criteria, follow=True)
         self.assertEqual({call.args[0] for call in fetch.call_args_list}, {self.greenhouse_url, self.lever_url})
         return response
 
@@ -141,9 +143,9 @@ class MultiSourceSearchTests(TestCase):
         response = self.run_search(lever=[self.lever_job, distinct_job, excluded_job])
         matches = response.context["matches"]
         self.assertEqual(len(matches), 2)
-        self.assertEqual(matches[0].sources, ("Greenhouse", "Lever"))
-        self.assertEqual(matches[1].sources, ("Lever",))
-        self.assertEqual(matches[1].offer.location, "Milan / Madrid")
+        self.assertEqual(matches[0]["sources"], ["Greenhouse", "Lever"])
+        self.assertEqual(matches[1]["sources"], ["Lever"])
+        self.assertEqual(matches[1]["offer"]["location"], "Milan / Madrid")
         self.assertContains(response, "Greenhouse / Lever")
 
     def test_one_provider_can_fail_without_losing_the_other(self):
@@ -154,5 +156,83 @@ class MultiSourceSearchTests(TestCase):
             with self.subTest(provider=provider):
                 response = self.run_search(failed_url=failed_url)
                 self.assertEqual(response.context["consulted"], 1)
-                self.assertEqual(response.context["matches"][0].sources, (remaining,))
+                self.assertEqual(response.context["matches"][0]["sources"], [remaining])
                 self.assertContains(response, f"{provider} · {company}. El servicio respondió con HTTP 503.")
+
+    def test_history_survives_partial_failure_and_refresh_does_not_search(self):
+        extra = self.lever_job | {"hostedUrl": self.posting_url.replace("42", "99"), "text": "Python Developer"}
+        first_response = self.run_search(lever=[self.lever_job, extra])
+        self.assertEqual(first_response.context["new_count"], 2)
+        first_seen = dict(SeenPosting.objects.values_list("key", "first_seen_at"))
+
+        partial = self.run_search(failed_url=self.lever_url)
+        self.assertEqual(partial.context["new_count"], 0)
+        self.assertEqual(partial.context["previous_count"], 1)
+        self.assertEqual(dict(SeenPosting.objects.values_list("key", "first_seen_at")), first_seen)
+
+        added = self.greenhouse_job | {"absolute_url": self.posting_url.replace("42", "100")}
+        resumed = self.run_search(greenhouse=[self.greenhouse_job, added], lever=[self.lever_job, extra])
+        self.assertEqual(resumed.context["new_count"], 1)
+        self.assertContains(resumed, "Vista por primera vez")
+
+        with patch("offers.connectors.common.urlopen") as fetch:
+            fresh_client = self.client_class()
+            new = fresh_client.get(reverse("search"), {"resultados": "nuevas"})
+            previous = fresh_client.get(reverse("search"), {"resultados": "anteriores"})
+            refreshed = fresh_client.get(reverse("search"))
+            fetch.assert_not_called()
+        self.assertEqual(len(new.context["matches"]), 1)
+        self.assertTrue(new.context["matches"][0]["is_new"])
+        self.assertEqual(len(previous.context["matches"]), 2)
+        self.assertTrue(all(not item["is_new"] for item in previous.context["matches"]))
+        self.assertEqual(refreshed.context["matches"], resumed.context["matches"])
+        self.assertEqual(SeenPosting.objects.count(), 3)
+
+    def test_graduates_title_receives_junior_priority(self):
+        graduate_job = self.lever_job | {
+            "text": "Math, Physics & Engineering Graduates",
+            "hostedUrl": self.posting_url.replace("42", "43"),
+        }
+        response = self.run_search(lever=[graduate_job])
+        matches = response.context["matches"]
+        self.assertEqual(matches[0]["offer"]["title"], graduate_job["text"])
+        self.assertEqual(matches[0]["ranking_reason"], "perfil junior en el título")
+        self.assertGreater(matches[0]["priority"], matches[1]["priority"])
+
+    def test_experience_labels_junior_ranking_and_senior_exclusion(self):
+        senior = self.greenhouse_job | {
+            "title": "Senior Backend Python Engineer",
+            "absolute_url": self.posting_url.replace("42", "43"),
+            "content": "5 years of professional experience with APIs.",
+        }
+        ambiguous = self.greenhouse_job | {
+            "title": "Python Developer",
+            "absolute_url": self.posting_url.replace("42", "44"),
+            "content": "Ideally 2–3 years of experience.",
+        }
+        junior = self.greenhouse_job | {
+            "title": "Junior Python Developer",
+            "absolute_url": self.posting_url.replace("42", "45"),
+            "content": "2–3 years of experience with APIs.",
+        }
+        response = self.run_search(greenhouse=[senior, ambiguous, junior], lever=[])
+        self.assertEqual(response.context["matches"][0]["offer"]["title"], "Junior Python Developer")
+        self.assertContains(response, "Experiencia indicada: 2–3 años")
+        self.assertNotContains(response, senior["title"])
+        self.assertContains(response, "Experiencia en años por confirmar")
+        self.assertContains(response, "perfil junior en el título")
+
+    def test_experience_wording(self):
+        for description, expected, preferred in [
+            ("At least 3 years of experience.", "Experiencia indicada: 3 años o más", True),
+            ("Dos años de experiencia.", "Experiencia indicada: 2 años", True),
+            ("3–5 years of experience.", "Experiencia indicada: 3–5 años", False),
+            ("Python experience is a plus.", "Experiencia en años sin indicar", False),
+            ("No 2 years of experience required.", "Experiencia en años por confirmar", False),
+            ("Preferred qualifications: 3 years of experience.", "Experiencia en años por confirmar", False),
+            ("2.5 years of experience.", "Experiencia en años por confirmar", False),
+            ("2 years of experience. 5 years of professional experience with Python.", "Experiencia en años por confirmar", False),
+        ]:
+            with self.subTest(description=description):
+                result = experience_of(normalize(description))
+                self.assertEqual((result.label, result.preferred_range), (expected, preferred))

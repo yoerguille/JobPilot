@@ -7,8 +7,9 @@ from django.shortcuts import redirect, render
 from .connectors import greenhouse, lever
 from .connectors.common import BoardError
 from .forms import CriteriaForm
+from .history import save_search
 from .matching import find_matches
-from .models import Criteria
+from .models import Criteria, SearchSnapshot
 
 
 def search(request):
@@ -26,7 +27,29 @@ def search(request):
         source_companies.setdefault(source, []).append(company)
     context = {"form": form, "source_companies": source_companies}
 
-    if request.method != "POST" or not form.is_valid():
+    if request.method != "POST":
+        snapshot = SearchSnapshot.objects.filter(pk=1).first()
+        if snapshot and snapshot.data["criteria"] == [criteria.keywords, criteria.location, criteria.modality]:
+            result_filter = request.GET.get("resultados", "todas")
+            if result_filter not in {"todas", "nuevas", "anteriores"}:
+                result_filter = "todas"
+            results = snapshot.data["matches"]
+            new_count = sum(result["is_new"] for result in results)
+            visible = results if result_filter == "todas" else [
+                result for result in results if result["is_new"] == (result_filter == "nuevas")
+            ]
+            context.update(
+                searched=True,
+                matches=visible,
+                result_filter=result_filter,
+                total_count=len(results),
+                new_count=new_count,
+                previous_count=len(results) - new_count,
+                failures=snapshot.data["failures"],
+                consulted=snapshot.data["consulted"],
+            )
+        return render(request, "offers/search.html", context)
+    if not form.is_valid():
         return render(request, "offers/search.html", context)
 
     criteria = form.save()
@@ -42,10 +65,5 @@ def search(request):
             except BoardError as error:
                 failures.append((source, company, str(error)))
 
-    context.update(
-        searched=True,
-        matches=find_matches(offers, criteria),
-        failures=failures,
-        consulted=len(boards) - len(failures),
-    )
-    return render(request, "offers/search.html", context)
+    save_search(criteria, find_matches(offers, criteria), failures, len(boards) - len(failures))
+    return redirect("search")

@@ -37,7 +37,14 @@
 
     {% if searched %}
       <section class="mt-6 space-y-3" aria-labelledby="results-heading">
-        <h2 id="results-heading" class="text-xl font-semibold">Resultados{% if consulted %} ({{ matches|length }}){% endif %}</h2>
+        <h2 id="results-heading" class="text-xl font-semibold">Resultados{% if consulted %} ({{ total_count }}){% endif %}</h2>
+        {% if total_count %}
+          <nav class="flex flex-wrap gap-4 text-sm font-semibold text-emerald-800" aria-label="Filtrar resultados por novedad">
+            <a href="?resultados=todas" class="underline underline-offset-4" {% if result_filter == "todas" %}aria-current="page"{% endif %}>Todas ({{ total_count }})</a>
+            <a href="?resultados=nuevas" class="underline underline-offset-4" {% if result_filter == "nuevas" %}aria-current="page"{% endif %}>Nuevas ({{ new_count }})</a>
+            <a href="?resultados=anteriores" class="underline underline-offset-4" {% if result_filter == "anteriores" %}aria-current="page"{% endif %}>Anteriores ({{ previous_count }})</a>
+          </nav>
+        {% endif %}
         {% if failures %}
           <p>Bolsas que no se pudieron consultar</p>
           <ul class="list-disc pl-6">
@@ -51,11 +58,21 @@
               <h3 class="text-lg font-semibold">{{ match.offer.title }}</h3>
               <p>{{ match.offer.company }} · {{ match.offer.location|default:"Ubicación sin indicar" }} · {{ match.sources|join:" / " }}</p>
               <p class="text-sm {% if match.pending %}text-amber-900{% else %}text-emerald-800{% endif %}">{{ match.modality }} · {{ match.geography }}</p>
-              <p class="text-sm text-emerald-800">Coincide con {{ match.reason }}</p>
+              <p class="text-sm text-emerald-800">
+                {% if match.is_new %}<strong>Nueva</strong> · {% endif %}Vista por primera vez el {{ match.first_seen }}
+              </p>
+              <p class="text-sm text-emerald-800">{{ match.experience }}</p>
+              <p class="text-sm text-emerald-800">Coincide con {{ match.reason }}{% if match.ranking_reason %} · {{ match.ranking_reason }}{% endif %}</p>
               <a href="{{ match.offer.url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="mt-2 inline-block font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original<span class="sr-only"> de {{ match.offer.title }}</span></a>
             </article>
           {% endfor %}
           <span id="original-link-hint" class="sr-only">Se abre en una pestaña nueva.</span>
+        {% elif total_count %}
+          {% if result_filter == "nuevas" %}
+            <p>No hay ofertas nuevas en esta búsqueda.</p>
+          {% else %}
+            <p>No hay ofertas anteriores en esta búsqueda.</p>
+          {% endif %}
         {% elif consulted %}
           <p>Ninguna oferta de las empresas consultadas coincide con estos criterios. Prueba con otros términos o una modalidad más amplia.</p>
         {% elif not failures %}
