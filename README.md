@@ -41,6 +41,10 @@ Use **All** (`Todas`), **New** (`Nuevas`), or **Previous** (`Anteriores`) to fil
 
 Experience labels distinguish explicit years and ranges, missing years, and ambiguous statements. A posting with conflicting or unclear numbers is flagged for confirmation. The labels reflect the wording recognized in the posting.
 
+## Record an application
+
+After applying on the original site, select **Mark as applied** (`Marcar como aplicada`) on the search result. JobPilot opens the saved application with the application date and original source links. Future results with a known posting link show **Applied** (`Aplicada`) and link to the same record.
+
 ## Build the styles
 
 The compiled CSS is included. To rebuild it after editing the templates or `assets/jobpilot.css`, use Node.js 24 and npm from the project root.

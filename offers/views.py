@@ -2,14 +2,17 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
 from django.conf import settings
-from django.shortcuts import redirect, render
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
+from .applications import ConflictingApplications, application_links, record_application
 from .connectors import greenhouse, lever
 from .connectors.common import BoardError
 from .forms import CriteriaForm
 from .history import save_search
-from .matching import find_matches
-from .models import Criteria, SearchSnapshot
+from .matching import find_matches, posting_identity
+from .models import Application, ApplicationPosting, Criteria, SearchSnapshot
 
 
 def search(request):
@@ -38,6 +41,14 @@ def search(request):
             visible = results if result_filter == "todas" else [
                 result for result in results if result["is_new"] == (result_filter == "nuevas")
             ]
+            keyed_results = [
+                (result, {posting_identity(url) for _, url in application_links(result)})
+                for result in visible
+            ]
+            known = ApplicationPosting.objects.in_bulk({key for _, keys in keyed_results for key in keys})
+            for result, keys in keyed_results:
+                result["posting_identity"] = posting_identity(result["offer"]["url"])
+                result["application_ids"] = sorted({known[key].application_id for key in keys if key in known})
             context.update(
                 searched=True,
                 matches=visible,
@@ -67,3 +78,21 @@ def search(request):
 
     save_search(criteria, find_matches(offers, criteria), failures, len(boards) - len(failures))
     return redirect("search")
+
+
+@require_POST
+def mark_application(request, posting):
+    snapshot = get_object_or_404(SearchSnapshot, pk=1)
+    for match in snapshot.data["matches"]:
+        if posting_identity(match["offer"]["url"]) == posting:
+            try:
+                application = record_application(match)
+            except ConflictingApplications:
+                return HttpResponse("Esta vacante coincide con varias candidaturas guardadas.", status=409)
+            return redirect("application_detail", pk=application.pk)
+    raise Http404("La oferta ya no está en los resultados de la última búsqueda.")
+
+
+def application_detail(request, pk):
+    application = get_object_or_404(Application, pk=pk)
+    return render(request, "offers/application_detail.html", {"application": application})

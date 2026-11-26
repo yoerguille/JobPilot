@@ -16,3 +16,4 @@
 - Grouped clear duplicate vacancies across posting URLs, retained their original source links, and shared first-seen dates with newly discovered links.
 - Documented MVP completion, the roadmap for application tracking, CV generation, and hiring news, and the branch workflow for future changes.
 - Added persistent application records, canonical posting links, and dated status history for the first stage of application tracking.
+- Added an action to mark search results as applied and open their saved application details.

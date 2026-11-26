@@ -1,0 +1,24 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JobPilot · {{ application.title }}</title>
+  <link rel="stylesheet" href="{% static 'offers/jobpilot.css' %}">
+</head>
+<body class="min-h-screen bg-emerald-50 font-sans text-emerald-950">
+  <main class="mx-auto max-w-4xl px-5 py-10">
+    <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+    <article class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5">
+      <h1 class="text-xl font-semibold">{{ application.title }}</h1>
+      <p>{{ application.company }} · {{ application.location|default:"Ubicación sin indicar" }}</p>
+      <p><strong>{{ application.get_status_display }}</strong> · Fecha de aplicación: {{ application.applied_at|date:"SHORT_DATE_FORMAT" }}</p>
+      <ul class="space-y-1">
+        {% for source, url in application.original_links %}
+          <li><a href="{{ url }}" target="_blank" rel="noopener" class="underline underline-offset-4">Ver anuncio original en {{ source }}<span class="sr-only"> (se abre en una pestaña nueva)</span></a></li>
+        {% endfor %}
+      </ul>
+    </article>
+  </main>
+</body>
+</html>

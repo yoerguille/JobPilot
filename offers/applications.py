@@ -4,16 +4,25 @@ from .matching import posting_identity
 from .models import Application, ApplicationPosting
 
 
+class ConflictingApplications(Exception):
+    pass
+
+
+def application_links(match):
+    offer = match["offer"]
+    return match.get("links") or [(offer["source"], offer["url"])]
+
+
 @transaction.atomic
 def record_application(match):
     """Save an applied posting from a search snapshot and register all known URLs."""
     offer = match["offer"]
-    links = match.get("links") or [(offer["source"], offer["url"])]
+    links = application_links(match)
     keys = {posting_identity(url) for _, url in links}
     known = ApplicationPosting.objects.in_bulk(keys)
     application_ids = {posting.application_id for posting in known.values()}
     if len(application_ids) > 1:
-        raise ValueError("The posting links belong to different applications.")
+        raise ConflictingApplications("The posting links belong to different applications.")
 
     if application_ids:
         application = Application.objects.get(pk=application_ids.pop())
