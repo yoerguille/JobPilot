@@ -159,6 +159,50 @@ class MultiSourceSearchTests(TestCase):
                 self.assertEqual(response.context["matches"][0]["sources"], [remaining])
                 self.assertContains(response, f"{provider} · {company}. El servicio respondió con HTTP 503.")
 
+    @override_settings(LEVER_BOARDS={"example": ("Company A", "eu")})
+    def test_cross_source_duplicate_keeps_both_links_and_history(self):
+        description = (
+            "Build Python APIs for our payments platform. Maintain integrations with banking providers "
+            "and improve the reliability of transaction processing. Work with the backend team to "
+            "review changes and monitor production performance during weekly releases."
+        )
+        greenhouse = self.greenhouse_job | {"content": description}
+        lever = self.lever_job | {
+            "text": greenhouse["title"],
+            "hostedUrl": "https://jobs.lever.co/example/payments",
+            "categories": {"location": "Madrid (Remote)"},
+            "country": "ES",
+            "descriptionPlain": description.replace("improve", "increase"),
+            "lists": [],
+        }
+        distinct = lever | {
+            "hostedUrl": "https://jobs.lever.co/example/analytics",
+            "descriptionPlain": description.replace("payments platform", "analytics suite").replace(
+                "banking providers", "advertising partners"
+            ),
+        }
+        first = self.run_search(greenhouse=[greenhouse], lever=[])
+        self.assertEqual(first.context["new_count"], 1)
+        grouped = self.run_search(greenhouse=[greenhouse], lever=[lever, distinct])
+        self.assertEqual(grouped.context["total_count"], 2)
+        self.assertEqual(grouped.context["previous_count"], 1)
+        self.assertContains(grouped, "Ver anuncio original en Greenhouse")
+        self.assertContains(grouped, "Ver anuncio original en Lever")
+        self.assertContains(grouped, lever["hostedUrl"])
+        lever_only = self.run_search(greenhouse=[], lever=[lever])
+        self.assertEqual(lever_only.context["previous_count"], 1)
+
+    def test_matching_vacancy_references_group_distinct_posting_urls(self):
+        first = self.greenhouse_job | {"requisition_id": "PAY-42"}
+        duplicate = first | {"absolute_url": self.posting_url.replace("42", "43")}
+        distinct = first | {"absolute_url": self.posting_url.replace("42", "44"), "requisition_id": "PAY-44"}
+        response = self.run_search(greenhouse=[first, duplicate, distinct], lever=[])
+        self.assertEqual(response.context["total_count"], 2)
+        self.assertEqual(response.context["matches"][0]["links"], [
+            ["Greenhouse", first["absolute_url"]],
+            ["Greenhouse", duplicate["absolute_url"]],
+        ])
+
     def test_history_survives_partial_failure_and_refresh_does_not_search(self):
         extra = self.lever_job | {"hostedUrl": self.posting_url.replace("42", "99"), "text": "Python Developer"}
         first_response = self.run_search(lever=[self.lever_job, extra])

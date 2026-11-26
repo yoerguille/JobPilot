@@ -16,5 +16,9 @@ def fetch_board(token, company, timeout):
             continue
         location = job.get("location")
         location = as_text(location.get("name")) if isinstance(location, dict) else ""
-        offers.append(Offer(title, company, location, "Greenhouse", url, html_to_text(job.get("content"))))
+        reference = job.get("requisition_id")
+        offers.append(Offer(
+            title, company, location, "Greenhouse", url, html_to_text(job.get("content")),
+            vacancy_reference=str(reference).strip() if type(reference) in (int, str) else "",
+        ))
     return offers

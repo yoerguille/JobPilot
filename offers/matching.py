@@ -1,6 +1,7 @@
 import re
 import unicodedata
 from dataclasses import dataclass, replace
+from difflib import SequenceMatcher
 from urllib.parse import parse_qsl, urlsplit
 
 from .experience import experience_of
@@ -41,6 +42,7 @@ class Match:
     sources: tuple[str, ...]
     experience: str
     ranking_reason: str
+    links: tuple[tuple[str, str], ...]
 
 
 def normalize(value):
@@ -132,19 +134,54 @@ def find_matches(offers, criteria):
             ranking_reasons.append("experiencia en el rango priorizado")
         results.append(Match(
             offer, ", ".join(hits), geography_label, labels[modality], pending, priority, (offer.source,),
-            experience.label, " · ".join(ranking_reasons),
+            experience.label, " · ".join(ranking_reasons), ((offer.source, offer.url),),
         ))
     results.sort(key=lambda match: (match.pending, -match.priority, match.offer.title.casefold()))
 
-    unique = {}
+    by_url = {}
     for match in results:
-        key = posting_key(match.offer.url)
-        existing = unique.get(key)
-        if existing is None:
-            unique[key] = match
-        elif match.offer.source not in existing.sources:
-            unique[key] = replace(existing, sources=(*existing.sources, match.offer.source))
-    return list(unique.values())
+        by_url.setdefault(posting_key(match.offer.url), []).append(match)
+
+    groups = []
+    for postings in by_url.values():
+        candidates = [
+            group for group in groups
+            if all(same_vacancy(left, right) for left in group for right in postings)
+        ]
+        if len(candidates) == 1:
+            candidates[0].extend(postings)
+        else:
+            groups.append(postings)
+
+    return [
+        replace(
+            group[0],
+            sources=tuple(dict.fromkeys(match.offer.source for match in group)),
+            links=tuple(dict.fromkeys(link for match in group for link in match.links)),
+        )
+        for group in groups
+    ]
+
+
+def same_vacancy(left, right):
+    first, second = left.offer, right.offer
+    company = normalize(first.company).strip()
+    if not company or company != normalize(second.company).strip():
+        return False
+    if first.vacancy_reference and second.vacancy_reference:
+        return first.vacancy_reference.casefold() == second.vacancy_reference.casefold()
+    if first.source == second.source or left.modality != right.modality or left.modality == "Modalidad sin indicar":
+        return False
+    location = " ".join(normalize(first.location).split())
+    if not location or location != " ".join(normalize(second.location).split()):
+        return False
+    if " ".join(normalize(first.title).split()) != " ".join(normalize(second.title).split()):
+        return False
+    first_words = re.findall(r"\w+", normalize(first.description))
+    second_words = re.findall(r"\w+", normalize(second.description))
+    if min(len(first_words), len(second_words)) < 30:
+        return False
+    return SequenceMatcher(None, first_words, second_words, autojunk=False).ratio() >= 0.97
 
 
 def posting_key(url):
