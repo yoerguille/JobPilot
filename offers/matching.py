@@ -1,7 +1,9 @@
+import json
 import re
 import unicodedata
 from dataclasses import dataclass, replace
 from difflib import SequenceMatcher
+from hashlib import sha256
 from urllib.parse import parse_qsl, urlsplit
 
 from .experience import experience_of
@@ -182,6 +184,10 @@ def same_vacancy(left, right):
     if min(len(first_words), len(second_words)) < 30:
         return False
     return SequenceMatcher(None, first_words, second_words, autojunk=False).ratio() >= 0.97
+
+
+def posting_identity(url):
+    return sha256(json.dumps(posting_key(url)).encode()).hexdigest()
 
 
 def posting_key(url):

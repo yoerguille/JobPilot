@@ -6,12 +6,40 @@ from urllib.error import HTTPError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from .applications import record_application
 from .connectors.common import BoardError
 from .connectors.greenhouse import fetch_board
 from .experience import experience_of
 from .matching import normalize
 from .models import Criteria, SeenPosting
 from .offer import Offer
+
+
+class ApplicationTrackingTests(TestCase):
+    def test_records_application_and_recognizes_grouped_posting_links(self):
+        original = "https://careers.example.org/jobs/42"
+        alternative = "https://jobs.lever.co/example/backend"
+        offer = {
+            "title": "Backend Developer", "company": "Example", "location": "Madrid",
+            "source": "Greenhouse", "url": original,
+        }
+        application = record_application({"offer": offer})
+        grouped = record_application({
+            "offer": offer,
+            "links": [["Greenhouse", original], ["Lever", alternative]],
+        })
+        alias = record_application({
+            "offer": offer | {"source": "Lever", "url": alternative + "?utm_source=feed"},
+        })
+
+        self.assertEqual(grouped.pk, application.pk)
+        self.assertEqual(alias.pk, application.pk)
+        application.refresh_from_db()
+        self.assertIn(["Lever", alternative], application.original_links)
+        event = application.status_history.get()
+        self.assertEqual(application.status, "applied")
+        self.assertEqual(event.status, application.status)
+        self.assertEqual(event.occurred_at, application.applied_at)
 
 
 @override_settings(GREENHOUSE_BOARDS={"example": "Ejemplo", "unavailable": "Sin conexión"}, LEVER_BOARDS={})
