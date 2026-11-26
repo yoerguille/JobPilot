@@ -4,6 +4,7 @@ from functools import partial
 from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .applications import ConflictingApplications, application_links, change_application_status, record_application
@@ -115,6 +116,10 @@ def application_detail(request, pk):
     )
     if request.method == "POST" and form.is_valid():
         change_application_status(application.pk, form.cleaned_data["status"])
+        if request.POST.get("return_to") == "application_list":
+            status_filter = request.POST.get("estado", "")
+            query = {"estado": status_filter} if status_filter in ApplicationStatus.values else None
+            return redirect(reverse("application_list", query=query))
         return redirect("application_detail", pk=application.pk)
 
     return render(request, "offers/application_detail.html", {"application": application, "status_form": form})
