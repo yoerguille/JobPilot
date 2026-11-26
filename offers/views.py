@@ -12,7 +12,7 @@ from .connectors.common import BoardError
 from .forms import CriteriaForm
 from .history import save_search
 from .matching import find_matches, posting_identity
-from .models import Application, ApplicationPosting, Criteria, SearchSnapshot
+from .models import Application, ApplicationPosting, ApplicationStatus, Criteria, SearchSnapshot
 
 
 def search(request):
@@ -91,6 +91,20 @@ def mark_application(request, posting):
                 return HttpResponse("Esta vacante coincide con varias candidaturas guardadas.", status=409)
             return redirect("application_detail", pk=application.pk)
     raise Http404("La oferta ya no está en los resultados de la última búsqueda.")
+
+
+def application_list(request):
+    status = request.GET.get("estado", "")
+    applications = Application.objects.order_by("-applied_at", "-pk")
+    if status in ApplicationStatus.values:
+        applications = applications.filter(status=status)
+    else:
+        status = ""
+    return render(request, "offers/application_list.html", {
+        "applications": applications,
+        "selected_status": status,
+        "statuses": ApplicationStatus.choices,
+    })
 
 
 def application_detail(request, pk):
