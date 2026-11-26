@@ -307,6 +307,31 @@ class MultiSourceSearchTests(TestCase):
         self.assertEqual(matches[1]["offer"]["location"], "Milan / Madrid")
         self.assertContains(response, "Greenhouse / Lever")
 
+    def test_tailors_and_approves_a_cv_from_a_search_result(self):
+        profile = CVProfile.objects.create(pk=1, full_name="Example Name", summary="Base summary", skills="Python\nDesign")
+        relevant = profile.projects.create(name="Payments integration", description="Connect banking providers.")
+        other = profile.projects.create(name="Illustration", description="Create editorial illustrations.")
+        offer = self.greenhouse_job | {"content": "Work on payments integration with banking providers."}
+        results = self.run_search(greenhouse=[offer], lever=[])
+        url = reverse("cv_offer_draft", args=[posting_identity(offer["absolute_url"])])
+        self.assertContains(results, url)
+        draft = self.client.get(url)
+        self.assertEqual(draft.context["draft_form"].initial["projects"], [str(relevant.pk)])
+        self.assertEqual(draft.context["skills"], ["Python"])
+        data = {"summary": "Edited summary", "projects": [other.pk], "skills": ["Design"]}
+        preview = self.client.post(url, data | {"action": "preview"})
+        self.assertEqual(preview.context["profile"]["summary"], "Edited summary")
+        self.assertEqual([entry["id"] for entry in preview.context["projects"]], [other.pk])
+        self.assertRedirects(self.client.post(url, data | {"action": "approve"}), url)
+        profile.summary = "Changed base profile"
+        profile.save(update_fields=["summary"])
+        self.run_search(greenhouse=[], lever=[])
+        approved = self.client.get(url)
+        self.assertContains(approved, "Borrador aprobado")
+        self.assertContains(approved, "Edited summary")
+        self.assertNotContains(approved, "Changed base profile")
+        self.assertContains(approved, "Illustration")
+
     def test_one_provider_can_fail_without_losing_the_other(self):
         for failed_url, provider, company, remaining in [
             (self.lever_url, "Lever", "Company B", "Greenhouse"),

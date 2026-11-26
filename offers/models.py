@@ -89,3 +89,10 @@ class CVEducation(models.Model):
     institution = models.CharField(max_length=150)
     period = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
+
+
+class CVOfferDraft(models.Model):
+    posting_key = models.CharField(max_length=64, primary_key=True)
+    offer_title = models.TextField()
+    company = models.TextField()
+    content = models.JSONField()
