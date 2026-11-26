@@ -18,3 +18,4 @@
 - Added persistent application records, canonical posting links, and dated status history for the first stage of application tracking.
 - Added an action to mark search results as applied and open their saved application details.
 - Added a dedicated application list with status filters and links to saved application details.
+- Added status updates and a dated status history to saved applications.

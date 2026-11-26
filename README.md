@@ -47,6 +47,8 @@ After applying on the original site, select **Mark as applied** (`Marcar como ap
 
 Open **My applications** (`Mis candidaturas`) from the search page or an application detail page. The list shows the newest applications first, with their company, location, application date, and current status. Filter by status or open a title to see the original links.
 
+To update an application, select any status on its detail page and choose **Save status** (`Guardar estado`). The page shows a chronological status history with the date and time of each change. Saving the current status again leaves its history intact.
+
 ## Build the styles
 
 The compiled CSS is included. To rebuild it after editing the templates or `assets/jobpilot.css`, use Node.js 24 and npm from the project root.

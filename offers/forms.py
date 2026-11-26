@@ -1,6 +1,17 @@
 from django import forms
 
-from .models import Criteria
+from .models import ApplicationStatus, Criteria
+
+
+class ApplicationStatusForm(forms.Form):
+    status = forms.ChoiceField(
+        label="Estado",
+        choices=ApplicationStatus.choices,
+        error_messages={
+            "required": "Selecciona un estado.",
+            "invalid_choice": "Selecciona un estado válido.",
+        },
+    )
 
 
 class CriteriaForm(forms.ModelForm):

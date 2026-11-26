@@ -6,10 +6,10 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .applications import ConflictingApplications, application_links, record_application
+from .applications import ConflictingApplications, application_links, change_application_status, record_application
 from .connectors import greenhouse, lever
 from .connectors.common import BoardError
-from .forms import CriteriaForm
+from .forms import ApplicationStatusForm, CriteriaForm
 from .history import save_search
 from .matching import find_matches, posting_identity
 from .models import Application, ApplicationPosting, ApplicationStatus, Criteria, SearchSnapshot
@@ -109,4 +109,12 @@ def application_list(request):
 
 def application_detail(request, pk):
     application = get_object_or_404(Application, pk=pk)
-    return render(request, "offers/application_detail.html", {"application": application})
+    form = ApplicationStatusForm(
+        request.POST if request.method == "POST" else None,
+        initial={"status": application.status},
+    )
+    if request.method == "POST" and form.is_valid():
+        change_application_status(application.pk, form.cleaned_data["status"])
+        return redirect("application_detail", pk=application.pk)
+
+    return render(request, "offers/application_detail.html", {"application": application, "status_form": form})

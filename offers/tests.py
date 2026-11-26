@@ -16,6 +16,29 @@ from .offer import Offer
 
 
 class ApplicationTrackingTests(TestCase):
+    def test_application_detail_updates_status_and_keeps_chronological_history(self):
+        application = record_application({"offer": {
+            "title": "Backend Developer", "company": "Example", "location": "Madrid",
+            "source": "Greenhouse", "url": "https://careers.example.org/jobs/42",
+        }})
+        detail_url = reverse("application_detail", args=[application.pk])
+        self.assertContains(self.client.get(detail_url), 'value="applied" selected')
+        for status in ("interview", "rejected", "rejected"):
+            self.assertRedirects(self.client.post(detail_url, {"status": status}), detail_url)
+
+        invalid = self.client.post(detail_url, {"status": "unknown"})
+        self.assertContains(invalid, "Selecciona un estado válido.")
+        application.refresh_from_db()
+        events = list(application.status_history.all())
+        self.assertEqual(application.status, "rejected")
+        self.assertEqual([event.status for event in events], ["applied", "interview", "rejected"])
+        self.assertEqual(events[0].occurred_at, application.applied_at)
+        self.assertEqual([event.occurred_at for event in events], sorted(event.occurred_at for event in events))
+        detail = self.client.get(detail_url)
+        self.assertContains(detail, "Historial de estados")
+        self.assertContains(detail, "<time datetime=", count=3)
+        self.assertContains(self.client.get(reverse("application_list"), {"estado": "rejected"}), application.title)
+
     def test_application_list_filters_and_links_to_saved_details(self):
         list_url = reverse("application_list")
         self.assertContains(self.client.get(reverse("search")), list_url)
