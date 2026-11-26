@@ -13,3 +13,4 @@
 - Added persistent first-seen dates and new and previous filters for the latest search. Refined technical and junior relevance and added labels for stated, missing, or unclear years of experience.
 - Recognized plural graduate job titles as a junior ranking signal.
 - Excluded postings with senior titles from search results.
+- Grouped clear duplicate vacancies across posting URLs, retained their original source links, and shared first-seen dates with newly discovered links.

@@ -14,25 +14,37 @@ from .models import SearchSnapshot, SeenPosting
 def save_search(criteria, matches, failures, consulted):
     observed_at = timezone.now()
     search_id = uuid4()
-    by_key = {
-        sha256(json.dumps(posting_key(match.offer.url)).encode()).hexdigest(): match
+    grouped_keys = [
+        (match, {
+            sha256(json.dumps(posting_key(url)).encode()).hexdigest()
+            for _, url in match.links
+        })
         for match in matches
-    }
-    SeenPosting.objects.bulk_create([
-        SeenPosting(key=key, first_seen_at=observed_at, first_search=search_id)
-        for key in by_key
-    ], ignore_conflicts=True)
-    seen = SeenPosting.objects.in_bulk(by_key)
+    ]
+    all_keys = {key for _, keys in grouped_keys for key in keys}
+    seen = SeenPosting.objects.in_bulk(all_keys)
+    new_observations = []
     results = []
-    for key, match in by_key.items():
-        observation = seen[key]
+    for match, keys in grouped_keys:
+        observation = min(
+            (seen[key] for key in keys if key in seen),
+            key=lambda posting: posting.first_seen_at,
+            default=None,
+        )
+        first_seen = observation.first_seen_at if observation else observed_at
+        first_search = observation.first_search if observation else search_id
+        new_observations.extend(
+            SeenPosting(key=key, first_seen_at=first_seen, first_search=first_search)
+            for key in keys if key not in seen
+        )
         result = asdict(match)
         del result["offer"]["description"]
         result.update(
-            is_new=observation.first_search == search_id,
-            first_seen=formats.date_format(timezone.localtime(observation.first_seen_at), "SHORT_DATE_FORMAT"),
+            is_new=first_search == search_id,
+            first_seen=formats.date_format(timezone.localtime(first_seen), "SHORT_DATE_FORMAT"),
         )
         results.append(result)
+    SeenPosting.objects.bulk_create(new_observations, ignore_conflicts=True)
     snapshot = SearchSnapshot(pk=1, data={
         "criteria": [criteria.keywords, criteria.location, criteria.modality],
         "matches": results,

@@ -63,7 +63,15 @@
               </p>
               <p class="text-sm text-emerald-800">{{ match.experience }}</p>
               <p class="text-sm text-emerald-800">Coincide con {{ match.reason }}{% if match.ranking_reason %} · {{ match.ranking_reason }}{% endif %}</p>
-              <a href="{{ match.offer.url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="mt-2 inline-block font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original<span class="sr-only"> de {{ match.offer.title }}</span></a>
+              {% if match.links|length > 1 %}
+                <ul class="mt-2 space-y-1">
+                  {% for source, url in match.links %}
+                    <li><a href="{{ url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original en {{ source }}<span class="sr-only"> de {{ match.offer.title }}{% if match.sources|length < match.links|length %}, enlace {{ forloop.counter }}{% endif %}</span></a></li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <a href="{{ match.offer.url }}" target="_blank" rel="noopener" aria-describedby="original-link-hint" class="mt-2 inline-block font-semibold text-emerald-800 underline underline-offset-4 hover:text-emerald-950">Ver anuncio original<span class="sr-only"> de {{ match.offer.title }}</span></a>
+              {% endif %}
             </article>
           {% endfor %}
           <span id="original-link-hint" class="sr-only">Se abre en una pestaña nueva.</span>

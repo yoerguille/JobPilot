@@ -11,3 +11,4 @@ class Offer:
     description: str = ""
     modality: str = ""
     country_code: str = ""
+    vacancy_reference: str = ""
