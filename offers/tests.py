@@ -11,8 +11,57 @@ from .connectors.common import BoardError
 from .connectors.greenhouse import fetch_board
 from .experience import experience_of
 from .matching import normalize, posting_identity
-from .models import Application, Criteria, SeenPosting
+from .models import Application, Criteria, CVProfile, SeenPosting
 from .offer import Offer
+
+
+class CVProfileTests(TestCase):
+    def test_creates_and_edits_profile_with_repeatable_entries(self):
+        url = reverse("cv_profile")
+        self.assertContains(self.client.get(reverse("search")), url)
+        self.assertContains(self.client.get(url), "Guardar perfil")
+        data = {
+            "full_name": "Example Name",
+            "email": "example@example.org",
+            "skills": "Python\nDjango",
+            "experience-TOTAL_FORMS": "1",
+            "experience-INITIAL_FORMS": "0",
+            "experience-0-role": "Backend Developer",
+            "experience-0-company": "Example",
+            "projects-TOTAL_FORMS": "1",
+            "projects-INITIAL_FORMS": "0",
+            "projects-0-name": "Example API",
+            "education-TOTAL_FORMS": "1",
+            "education-INITIAL_FORMS": "0",
+            "education-0-qualification": "Software Development",
+            "education-0-institution": "Example School",
+        }
+        response = self.client.post(url, data, follow=True)
+        self.assertContains(response, "Perfil guardado.")
+        profile = CVProfile.objects.get()
+        self.assertEqual(profile.experience.get().role, "Backend Developer")
+        self.assertEqual(profile.projects.get().name, "Example API")
+        self.assertEqual(profile.education.get().institution, "Example School")
+        update = data | {
+            "full_name": "Updated Name",
+            "experience-INITIAL_FORMS": "1",
+            "experience-0-id": profile.experience.get().pk,
+            "experience-0-role": "Python Developer",
+            "projects-INITIAL_FORMS": "1",
+            "projects-0-id": profile.projects.get().pk,
+            "projects-0-DELETE": "on",
+            "education-INITIAL_FORMS": "1",
+            "education-0-id": profile.education.get().pk,
+        }
+        self.client.post(url, update | {"education-0-institution": ""})
+        profile.refresh_from_db()
+        self.assertEqual(profile.full_name, "Example Name")
+        self.assertEqual(profile.projects.count(), 1)
+        self.assertRedirects(self.client.post(url, update), f"{url}?guardado=1")
+        profile.refresh_from_db()
+        self.assertEqual(profile.full_name, "Updated Name")
+        self.assertEqual(profile.experience.get().role, "Python Developer")
+        self.assertFalse(profile.projects.exists())
 
 
 class ApplicationTrackingTests(TestCase):

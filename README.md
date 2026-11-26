@@ -4,9 +4,8 @@ A local app for finding backend jobs on Greenhouse and Lever and opening the ori
 
 ## Roadmap
 
-1. **Application tracking.** Save an offer by marking it as applied. Keep a dated status history in a dedicated view, including interviews, technical assessments, and rejections.
-2. **CV tailoring and generation.** Create a base profile with verified experience, projects, and education. Generate and review a CV for an offer using an agreed structure and predefined styles. Export and save versions, and link each application to the exact version sent.
-3. **Hiring news.** Add a separate view for technology hiring announcements in Spain. Show the headline, date, source, short excerpt, and link to the original article. Mark new items and use a thumbnail when the source provides one for that use. Evaluate [Xataka's RSS](https://www.xataka.com/xataka/suscribete-a-xataka) and [RTVE's Economy RSS](https://www.rtve.es/rss/) first. [RTVE's employment portal](https://www.rtve.es/aqui-hay-trabajo/), [NoticiasTrabajo](https://www.noticiastrabajo.es/), and [Europa Press Economía](https://www.europapress.es/economia/) are candidates pending verification of a suitable feed or API. Link to the original company announcement when available.
+1. **CV tailoring and generation.** The base profile is available. The next stages will add a template, offer-specific drafts, PDF export, saved versions, and a link from each application to the exact version sent.
+2. **Hiring news.** Add a separate view for technology hiring announcements in Spain. Show the headline, date, source, short excerpt, and link to the original article. Mark new items and use a thumbnail when the source provides one for that use. Evaluate [Xataka's RSS](https://www.xataka.com/xataka/suscribete-a-xataka) and [RTVE's Economy RSS](https://www.rtve.es/rss/) first. [RTVE's employment portal](https://www.rtve.es/aqui-hay-trabajo/), [NoticiasTrabajo](https://www.noticiastrabajo.es/), and [Europa Press Economía](https://www.europapress.es/economia/) are candidates pending verification of a suitable feed or API. Link to the original company announcement when available.
 
 The InfoJobs integration is on hold while its developer portal is closed to new application registrations. Adzuna is a candidate for a search trial to assess Spanish coverage and the detail its API returns. Automated application submission remains outside the current roadmap.
 
@@ -48,6 +47,10 @@ After applying on the original site, select **Mark as applied** (`Marcar como ap
 Open **My applications** (`Mis candidaturas`) from the search page or an application detail page. The list shows the newest applications first, with their company, location, application date, and current status. Filter by status, update the status from a card, or select **View application** (`Ver candidatura`) to open its details and original links. The list keeps its current filter after a status update.
 
 To update an application, select any status on its detail page and choose **Save status** (`Guardar estado`). The page shows a chronological status history with the date and time of each change. Saving the current status again leaves its history intact.
+
+## CV profile
+
+Open **CV profile** (`Perfil de CV`) from the search page. Enter your contact details, professional summary, and skills. Add separate entries for experience, projects, and education. Each section offers a blank entry after saving. Use the checkbox on an existing entry to remove it when saving the profile. The profile is stored in the local SQLite database.
 
 ## Build the styles
 

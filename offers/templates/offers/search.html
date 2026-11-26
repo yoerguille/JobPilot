@@ -10,7 +10,10 @@
   <main class="mx-auto max-w-4xl px-5 py-10">
     <header>
       <h1 class="text-4xl font-bold tracking-tight">JobPilot</h1>
-      <p class="mt-2"><a href="{% url 'application_list' %}" class="font-semibold underline underline-offset-4">Mis candidaturas</a></p>
+      <nav class="mt-2 flex flex-wrap gap-4" aria-label="Navegación">
+        <a href="{% url 'application_list' %}" class="font-semibold underline underline-offset-4">Mis candidaturas</a>
+        <a href="{% url 'cv_profile' %}" class="font-semibold underline underline-offset-4">Perfil de CV</a>
+      </nav>
       {% for source, companies in source_companies.items %}<p class="mt-1 text-sm text-emerald-800">{{ source }} · {{ companies|join:", " }}</p>{% endfor %}
     </header>
     <section class="mt-6" aria-labelledby="criteria-heading">

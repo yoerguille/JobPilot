@@ -55,3 +55,37 @@ class ApplicationStatusEvent(models.Model):
 
     class Meta:
         ordering = ["occurred_at", "pk"]
+
+
+class CVProfile(models.Model):
+    full_name = models.CharField(max_length=150)
+    headline = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    location = models.CharField(max_length=150, blank=True)
+    portfolio_url = models.URLField(blank=True)
+    summary = models.TextField(blank=True)
+    skills = models.TextField(blank=True)
+
+
+class CVExperience(models.Model):
+    profile = models.ForeignKey(CVProfile, on_delete=models.CASCADE, related_name="experience")
+    role = models.CharField(max_length=150)
+    company = models.CharField(max_length=150)
+    period = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+
+
+class CVProject(models.Model):
+    profile = models.ForeignKey(CVProfile, on_delete=models.CASCADE, related_name="projects")
+    name = models.CharField(max_length=150)
+    url = models.URLField(blank=True)
+    description = models.TextField(blank=True)
+
+
+class CVEducation(models.Model):
+    profile = models.ForeignKey(CVProfile, on_delete=models.CASCADE, related_name="education")
+    qualification = models.CharField(max_length=150)
+    institution = models.CharField(max_length=150)
+    period = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
