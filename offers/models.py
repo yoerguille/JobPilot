@@ -74,8 +74,12 @@ class CVProfile(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     location = models.CharField(max_length=150, blank=True)
     portfolio_url = models.URLField(blank=True)
+    linkedin_url = models.URLField(blank=True)
+    github_url = models.URLField(blank=True)
     summary = models.TextField(blank=True)
     skills = models.TextField(blank=True)
+    languages = models.TextField(blank=True)
+    additional_context = models.TextField(blank=True)
 
 
 class CVExperience(models.Model):

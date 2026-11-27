@@ -4,7 +4,8 @@ from hashlib import sha256
 
 from django import forms
 from django.db import transaction
-from django.forms import inlineformset_factory
+from django.forms import BaseInlineFormSet, inlineformset_factory
+from django.forms.formsets import DELETION_FIELD_NAME
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -18,7 +19,10 @@ from .models import CVEducation, CVExperience, CVOfferDraft, CVProfile, CVProjec
 class CVProfileForm(forms.ModelForm):
     class Meta:
         model = CVProfile
-        fields = ["full_name", "headline", "email", "phone", "location", "portfolio_url", "summary", "skills"]
+        fields = [
+            "full_name", "headline", "email", "phone", "location", "portfolio_url", "linkedin_url", "github_url",
+            "summary", "skills", "languages", "additional_context",
+        ]
         labels = {
             "full_name": "Nombre completo",
             "headline": "Título profesional",
@@ -26,25 +30,45 @@ class CVProfileForm(forms.ModelForm):
             "phone": "Teléfono",
             "location": "Ubicación",
             "portfolio_url": "Enlace profesional",
+            "linkedin_url": "Enlace a LinkedIn",
+            "github_url": "Enlace a GitHub",
             "summary": "Resumen profesional",
             "skills": "Habilidades",
+            "languages": "Idiomas y niveles",
+            "additional_context": "Notas para adaptar el CV",
         }
-        help_texts = {"skills": "Escribe una habilidad por línea."}
-        widgets = {"summary": forms.Textarea(attrs={"rows": 3}), "skills": forms.Textarea(attrs={"rows": 3})}
+        help_texts = {
+            "skills": "Escribe una habilidad por línea.",
+            "languages": "Escribe un idioma y su nivel por línea, por ejemplo, Inglés B2.",
+            "additional_context": "Añade logros, contexto o preferencias que quieras que la IA tenga en cuenta al adaptar tu CV.",
+        }
+        widgets = {
+            field: forms.Textarea(attrs={"rows": 3})
+            for field in ("summary", "skills", "languages", "additional_context")
+        }
+
+
+class CVEntryFormSet(BaseInlineFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        form.fields[DELETION_FIELD_NAME].label = "Eliminar esta entrada"
 
 
 ExperienceFormSet = inlineformset_factory(
     CVProfile, CVExperience, fields=["role", "company", "period", "description"],
+    formset=CVEntryFormSet,
     labels={"role": "Puesto", "company": "Empresa", "period": "Periodo", "description": "Descripción"},
     widgets={"description": forms.Textarea(attrs={"rows": 3})},
 )
 ProjectFormSet = inlineformset_factory(
     CVProfile, CVProject, fields=["name", "url", "description"],
+    formset=CVEntryFormSet,
     labels={"name": "Nombre del proyecto", "url": "Enlace", "description": "Descripción"},
     widgets={"description": forms.Textarea(attrs={"rows": 3})},
 )
 EducationFormSet = inlineformset_factory(
     CVProfile, CVEducation, fields=["qualification", "institution", "period", "description"],
+    formset=CVEntryFormSet,
     labels={"qualification": "Título o curso", "institution": "Centro", "period": "Periodo",
             "description": "Descripción"},
     widgets={"description": forms.Textarea(attrs={"rows": 3})},
@@ -62,6 +86,9 @@ def cv_profile(request):
         ("Proyectos", ProjectFormSet(data, instance=profile, prefix="projects")),
         ("Formación", EducationFormSet(data, instance=profile, prefix="education")),
     ]
+    if data is None:
+        for _, formset in sections:
+            formset.extra = 0 if formset.initial_form_count() else 1
     if request.method == "POST":
         valid = [form.is_valid(), *(formset.is_valid() for _, formset in sections)]
         if all(valid):
@@ -72,9 +99,6 @@ def cv_profile(request):
                     formset.save()
             return redirect(reverse("cv_profile", query={"guardado": "1"}))
 
-    for _, formset in sections:
-        for item in formset.forms:
-            item.fields["DELETE"].label = "Eliminar esta entrada"
     return render(request, "offers/cv_profile.html", {
         "form": form, "sections": sections, "saved": request.GET.get("guardado") == "1" and data is None,
         "has_profile": saved_profile is not None,

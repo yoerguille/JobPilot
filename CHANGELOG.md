@@ -28,3 +28,4 @@
 - Added saved CV versions and downloadable PDFs that preserve the approved content.
 - Added a sent CV version selector to application details, with links to the saved version and its PDF.
 - Added a pending applications list, saved offer summaries, an inline CV editor with automatic version linking, and a submission action that records the exact CV sent.
+- Expanded the CV profile with LinkedIn and GitHub links, languages and levels, and notes for future AI tailoring. Added on-demand experience, project, and education blocks with removable entries.

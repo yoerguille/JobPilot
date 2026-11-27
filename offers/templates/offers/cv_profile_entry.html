@@ -1,0 +1,17 @@
+<fieldset class="space-y-3 rounded-md border border-emerald-200 p-5" data-cv-entry>
+  <legend class="font-semibold" data-cv-entry-title>{{ title }}{% if number %} {{ number }}{% endif %}</legend>
+  {{ entry.non_field_errors }}
+  {% for field in entry.hidden_fields %}
+    {{ field.errors }}
+    {{ field }}
+  {% endfor %}
+  <div class="space-y-3" data-cv-entry-fields>
+    {% for field in entry.visible_fields %}
+      {% if field.name != "DELETE" %}
+        <div>{{ field.as_field_group }}</div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div data-cv-delete-field>{{ entry.DELETE.as_field_group }}</div>
+  <button type="button" class="cursor-pointer font-semibold underline underline-offset-4" data-toggle-cv-entry hidden>Eliminar bloque</button>
+</fieldset>

@@ -27,11 +27,25 @@ class CVProfileTests(TestCase):
     def test_creates_and_edits_profile_with_repeatable_entries(self):
         url = reverse("cv_profile")
         self.assertContains(self.client.get(reverse("search")), url)
-        self.assertContains(self.client.get(url), "Guardar perfil")
+        empty_profile = self.client.get(url)
+        self.assertContains(empty_profile, "Guardar perfil")
+        formsets = dict(empty_profile.context["sections"])
+        self.assertEqual(formsets["Experiencia"].total_form_count(), 1)
+        self.assertEqual(formsets["Proyectos"].total_form_count(), 1)
+        self.assertEqual(formsets["Formación"].total_form_count(), 1)
+        self.assertContains(empty_profile, 'experience-__prefix__-role')
+        self.assertContains(empty_profile, 'projects-__prefix__-name')
+        self.assertContains(empty_profile, 'education-__prefix__-qualification')
+        self.assertContains(empty_profile, "Añadir proyecto")
+        self.assertContains(empty_profile, "Eliminar bloque")
         data = {
             "full_name": "Example Name",
             "email": "example@example.org",
             "skills": "Python\nDjango",
+            "linkedin_url": "https://www.linkedin.com/in/example",
+            "github_url": "https://github.com/example",
+            "languages": "Español nativo\nInglés B2",
+            "additional_context": "Include mentoring and cross-team collaboration.",
             "experience-TOTAL_FORMS": "1",
             "experience-INITIAL_FORMS": "0",
             "experience-0-role": "Backend Developer",
@@ -52,19 +66,31 @@ class CVProfileTests(TestCase):
         for text in ("Example Name", "Backend Developer", "Example API", "Example School", "<li>Django</li>"):
             self.assertContains(preview, text)
         profile = CVProfile.objects.get()
+        for field in ("linkedin_url", "github_url", "languages", "additional_context"):
+            self.assertEqual(getattr(profile, field), data[field])
+            self.assertEqual(response.context["form"][field].value(), data[field])
         self.assertEqual(profile.experience.get().role, "Backend Developer")
         self.assertEqual(profile.projects.get().name, "Example API")
         self.assertEqual(profile.education.get().institution, "Example School")
         update = data | {
             "full_name": "Updated Name",
+            "experience-TOTAL_FORMS": "2",
             "experience-INITIAL_FORMS": "1",
             "experience-0-id": profile.experience.get().pk,
             "experience-0-role": "Python Developer",
+            "experience-1-role": "API Developer",
+            "experience-1-company": "Second Example",
             "projects-INITIAL_FORMS": "1",
+            "projects-TOTAL_FORMS": "3",
             "projects-0-id": profile.projects.get().pk,
             "projects-0-DELETE": "on",
+            "projects-1-name": "New project",
+            "projects-2-DELETE": "on",
             "education-INITIAL_FORMS": "1",
+            "education-TOTAL_FORMS": "2",
             "education-0-id": profile.education.get().pk,
+            "education-1-qualification": "Databases",
+            "education-1-institution": "Second School",
         }
         self.client.post(url, update | {"education-0-institution": ""})
         profile.refresh_from_db()
@@ -73,11 +99,38 @@ class CVProfileTests(TestCase):
         self.assertRedirects(self.client.post(url, update), f"{url}?guardado=1")
         profile.refresh_from_db()
         self.assertEqual(profile.full_name, "Updated Name")
-        self.assertEqual(profile.experience.get().role, "Python Developer")
-        self.assertFalse(profile.projects.exists())
+        self.assertEqual(list(profile.experience.order_by("pk").values_list("role", flat=True)), [
+            "Python Developer", "API Developer",
+        ])
+        self.assertEqual(list(profile.education.order_by("pk").values_list("institution", flat=True)), [
+            "Example School", "Second School",
+        ])
+        self.assertEqual(profile.projects.get().name, "New project")
         preview = self.client.get(preview_url)
         self.assertContains(preview, "Updated Name")
         self.assertNotContains(preview, "Example API")
+
+        experience = list(profile.experience.order_by("pk"))
+        education = list(profile.education.order_by("pk"))
+        delete = update | {
+            "experience-INITIAL_FORMS": "2",
+            "experience-0-id": experience[0].pk,
+            "experience-0-role": "",
+            "experience-0-DELETE": "on",
+            "experience-1-id": experience[1].pk,
+            "education-INITIAL_FORMS": "2",
+            "education-0-id": education[0].pk,
+            "education-1-id": education[1].pk,
+            "education-1-institution": "",
+            "education-1-DELETE": "on",
+            "projects-TOTAL_FORMS": "1",
+            "projects-0-id": profile.projects.get().pk,
+        }
+        self.assertRedirects(self.client.post(url, delete), f"{url}?guardado=1")
+        self.assertEqual(profile.experience.get().role, "API Developer")
+        self.assertEqual(profile.education.get().institution, "Example School")
+        self.assertFalse(profile.projects.exists())
+        self.assertEqual(dict(self.client.get(url).context["sections"])["Proyectos"].total_form_count(), 1)
 
 
 class ApplicationTrackingTests(TestCase):

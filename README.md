@@ -52,7 +52,9 @@ To update an application, select any status on its detail page and choose **Save
 
 ## CV profile
 
-Open **CV profile** (`Perfil de CV`) from the search page. Enter your contact details, professional summary, and skills. Add separate entries for experience, projects, and education. Each section offers a blank entry after saving. Use the checkbox on an existing entry to remove it when saving the profile. The profile is stored in the local SQLite database.
+Open **CV profile** (`Perfil de CV`) from the search page. Enter your contact details, LinkedIn and GitHub links, professional summary, and skills. Record languages and proficiency levels in **Languages** (`Idiomas`). Use **Additional information for AI** (`Información adicional para la IA`) to save notes for future AI tailoring.
+
+Experience, projects, and education start with one block each. Use **Add experience** (`Añadir experiencia`), **Add project** (`Añadir proyecto`), or **Add education** (`Añadir formación`) to insert another block. Use **Remove block** (`Eliminar bloque`) to mark it for deletion or **Undo removal** (`Deshacer eliminación`) to restore it before saving. The profile is stored in the local SQLite database.
 
 After saving, select **Preview CV** (`Ver vista previa del CV`) to see a single-column CV with the latest saved information. Empty fields and sections are omitted.
 

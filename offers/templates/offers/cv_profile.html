@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>JobPilot · Perfil de CV</title>
   <link rel="stylesheet" href="{% static 'offers/jobpilot.css' %}">
+  <script src="{% static 'offers/cv_profile.js' %}" defer></script>
 </head>
 <body class="min-h-screen bg-emerald-50 font-sans text-emerald-950">
   <main class="mx-auto max-w-4xl px-5 py-10">
@@ -20,21 +21,37 @@
       {% csrf_token %}
       <section class="space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="cv-profile-heading">
         <h2 id="cv-profile-heading" class="text-xl font-semibold">Datos profesionales</h2>
-        {{ form.as_div }}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+          {% if field.name != "languages" and field.name != "additional_context" %}
+            <div>{{ field.as_field_group }}</div>
+          {% endif %}
+        {% endfor %}
       </section>
       {% for title, formset in sections %}
-        <section class="space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="heading-{{ formset.prefix }}">
+        <section class="space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="heading-{{ formset.prefix }}" data-cv-section="{{ formset.prefix }}">
           <h2 id="heading-{{ formset.prefix }}" class="text-xl font-semibold">{{ title }}</h2>
           {{ formset.management_form }}
           {{ formset.non_form_errors }}
-          {% for entry in formset %}
-            <fieldset class="space-y-3 rounded-md border border-emerald-200 p-5">
-              <legend class="font-semibold">{% if entry.instance.pk %}{{ title }} {{ forloop.counter }}{% else %}Añadir entrada{% endif %}</legend>
-              {{ entry.as_div }}
-            </fieldset>
-          {% endfor %}
+          <div class="space-y-3" data-cv-entries>
+            {% for entry in formset %}
+              {% include "offers/cv_profile_entry.html" with number=forloop.counter %}
+            {% endfor %}
+          </div>
+          <template data-cv-entry-template>
+            {% include "offers/cv_profile_entry.html" with entry=formset.empty_form number=None %}
+          </template>
+          <button type="button" class="cursor-pointer font-semibold underline underline-offset-4" data-add-cv-entry hidden>{% if formset.prefix == "experience" %}Añadir experiencia{% elif formset.prefix == "projects" %}Añadir proyecto{% else %}Añadir formación{% endif %}</button>
         </section>
       {% endfor %}
+      <section class="space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="languages-heading">
+        <h2 id="languages-heading" class="text-xl font-semibold">Idiomas</h2>
+        <div>{{ form.languages.as_field_group }}</div>
+      </section>
+      <section class="space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="additional-context-heading">
+        <h2 id="additional-context-heading" class="text-xl font-semibold">Información adicional para la IA</h2>
+        <div>{{ form.additional_context.as_field_group }}</div>
+      </section>
       <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900">Guardar perfil</button>
     </form>
   </main>
