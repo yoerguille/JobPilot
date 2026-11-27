@@ -15,6 +15,7 @@ from .applications import (
 from .connectors import greenhouse, lever
 from .connectors.common import BoardError
 from .cv import CVOfferDraftForm, get_or_create_cv_version
+from .cv_ai import CVGenerationError, CVGenerationForm, CVTextForm, generate_cv_text, text_sections
 from .forms import ApplicationStatusForm, CriteriaForm, SentCVVersionForm
 from .history import save_search
 from .matching import find_matches, posting_identity
@@ -180,14 +181,49 @@ def pending_application_detail(request, application, post_data, action):
     profile = CVProfile.objects.filter(pk=1).first()
     context = {"application": application, "pending": True}
     if profile is not None:
+        prepared = None
+        if application.prepared_cv_version_id:
+            prepared = CVVersion.objects.only("content").get(pk=application.prepared_cv_version_id).content
+        ai_content = prepared if prepared and "text_sections" in prepared else None
+        generation = CVGenerationForm(
+            post_data if action == "generate_ai_cv" else None,
+            initial={"language": (
+                post_data.get("language") if action in {"preview_ai_cv", "save_ai_cv"}
+                else ai_content["language"] if ai_content else ""
+            )},
+        )
+        context["generation_form"] = generation
+        editor = None
+        if action in {"preview_ai_cv", "save_ai_cv"}:
+            editor = CVTextForm(post_data)
+            if editor.is_valid():
+                content = editor.content(profile)
+                if action == "save_ai_cv":
+                    return save_prepared_cv(application, content)
+                context.update(content, cv_sections=text_sections(content), show_preview=True)
+        elif ai_content:
+            editor = CVTextForm(initial=ai_content["text_sections"] | {
+                "headline": ai_content["profile"]["headline"], "cv_language": ai_content["language"],
+            })
+        if action == "generate_ai_cv":
+            if post_data.get("cv_language"):
+                editor = CVTextForm(post_data)
+            if generation.is_valid():
+                try:
+                    generated = generate_cv_text(profile, application, generation.cleaned_data["language"])
+                except CVGenerationError as error:
+                    generation.add_error(None, str(error))
+                else:
+                    editor = CVTextForm(initial=generated)
+        context["text_form"] = editor
+
         editing = action in {"preview_cv", "save_prepared_cv"}
         draft_form = CVOfferDraftForm(
             post_data if editing else None, profile, {"title": application.title, **snapshot},
         )
-        if application.prepared_cv_version_id:
-            prepared = CVVersion.objects.only("content").get(pk=application.prepared_cv_version_id)
-            draft_form.load_selection(prepared.content)
-        else:
+        if prepared and not ai_content:
+            draft_form.load_selection(prepared)
+        elif not prepared:
             draft = CVOfferDraft.objects.filter(pk=snapshot["posting_key"]).first()
             if draft:
                 draft_form.load_selection(draft.content)
@@ -195,18 +231,22 @@ def pending_application_detail(request, application, post_data, action):
         if draft_form.is_valid():
             selection = draft_form.cleaned_data
             if action == "save_prepared_cv":
-                content = draft_form.content(profile, selection)
-                with transaction.atomic():
-                    version = get_or_create_cv_version(
-                        snapshot["posting_key"], application.title, application.company, content,
-                    )
-                    updated = Application.objects.filter(pk=application.pk, status=ApplicationStatus.INTERESTED).update(
-                        prepared_cv_version=version,
-                    )
-                    if not updated:
-                        transaction.set_rollback(True)
-                return redirect(reverse("application_detail", args=[application.pk]) + "#cv")
+                return save_prepared_cv(application, draft_form.content(profile, selection))
         context["draft_form"] = draft_form
+        context["manual_editing"] = editing
         if action == "preview_cv" and not draft_form.errors:
             context.update(draft_form.content(profile, selection), show_preview=True)
     return render(request, "offers/application_detail.html", context)
+
+
+def save_prepared_cv(application, content):
+    with transaction.atomic():
+        version = get_or_create_cv_version(
+            application.offer_snapshot["posting_key"], application.title, application.company, content,
+        )
+        updated = Application.objects.filter(pk=application.pk, status=ApplicationStatus.INTERESTED).update(
+            prepared_cv_version=version,
+        )
+        if not updated:
+            transaction.set_rollback(True)
+    return redirect(reverse("application_detail", args=[application.pk]) + "#cv")

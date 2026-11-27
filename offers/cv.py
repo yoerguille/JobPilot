@@ -11,7 +11,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
-from .cv_pdf import render_cv_pdf
+from .cv_ai import text_sections
+from .cv_pdf import PDF_STYLE_VERSION, render_cv_pdf
 from .matching import normalize, posting_identity
 from .models import CVEducation, CVExperience, CVOfferDraft, CVProfile, CVProject, CVVersion, SearchSnapshot
 
@@ -170,7 +171,9 @@ class CVOfferDraftForm(forms.Form):
             self.initial[section] = [key for score, key, _ in scored if score or not scored[0][0]]
 
     def content(self, profile, selection):
-        contact_fields = ("full_name", "headline", "location", "email", "phone", "portfolio_url")
+        contact_fields = (
+            "full_name", "headline", "location", "email", "phone", "portfolio_url", "linkedin_url", "github_url",
+        )
         content = {
             "profile": {field: getattr(profile, field) for field in contact_fields} | {"summary": selection["summary"]},
         }
@@ -178,6 +181,7 @@ class CVOfferDraftForm(forms.Form):
             selected = set(selection.get(section, []))
             content[section] = [entry for entry in entries if str(entry["id"]) in selected]
         content["skills"] = [entry["name"] for entry in content["skills"]]
+        content["languages"] = [line.strip() for line in profile.languages.splitlines() if line.strip()]
         return content
 
     def load_selection(self, content):
@@ -235,7 +239,7 @@ def draft_fingerprint(draft):
 
 def get_or_create_cv_version(posting, title, company, content):
     version, _ = CVVersion.objects.get_or_create(
-        posting_key=posting, fingerprint=cv_fingerprint(title, company, content),
+        posting_key=posting, fingerprint=cv_fingerprint(title, company, content | {"pdf_style": PDF_STYLE_VERSION}),
         defaults={
             "offer_title": title, "company": company, "content": content,
             "pdf": lambda: render_cv_pdf(content),
@@ -263,9 +267,10 @@ def cv_versions(request):
 @require_safe
 def cv_version(request, pk):
     version = get_object_or_404(CVVersion.objects.defer("pdf"), pk=pk)
+    sections = text_sections(version.content) if "text_sections" in version.content else None
     return render(request, "offers/cv_preview.html", {
         **version.content, "target": {"title": version.offer_title, "company": version.company},
-        "version": version,
+        "version": version, "cv_sections": sections,
     })
 
 

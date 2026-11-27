@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env", override=False)
 SECRET_KEY = os.environ.get("JOBPILOT_SECRET_KEY", "django-insecure-jobpilot-local-development")
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
@@ -27,5 +30,8 @@ LEVER_BOARDS = {
     "lodgify": ("Lodgify", "global"),
 }
 LEVER_TIMEOUT = 5
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_CV_MODEL = os.environ.get("JOBPILOT_OPENAI_MODEL", "gpt-5-mini")
 
 STATIC_URL = "/static/"

@@ -9,6 +9,7 @@ from django.urls import reverse
 from .applications import record_application
 from .connectors.common import BoardError
 from .connectors.greenhouse import fetch_board
+from .cv_ai import SECTION_TITLES
 from .experience import experience_of
 from .matching import normalize, posting_identity
 from .models import Application, Criteria, CVProfile, CVVersion, SeenPosting
@@ -134,6 +135,74 @@ class CVProfileTests(TestCase):
 
 
 class ApplicationTrackingTests(TestCase):
+    @override_settings(OPENAI_API_KEY="test-key", OPENAI_CV_MODEL="test-model")
+    @patch("offers.cv_ai.urlopen")
+    def test_ai_cv_is_editable_and_only_saves_after_review(self, openai_request):
+        application = record_application({"offer": {
+            "title": "Backend Developer", "company": "Example", "location": "España",
+            "source": "Greenhouse", "url": "https://example.com/jobs/backend",
+            "description": "Build Python APIs.",
+        }}, interested=True)
+        profile = CVProfile.objects.create(
+            pk=1, full_name="Private Candidate", email="private@example.org",
+            linkedin_url="https://www.linkedin.com/in/private", skills="Python",
+            additional_context="Hands-on integrations", languages="English B2",
+        )
+        detail_url = reverse("application_detail", args=[application.pk])
+        generated = dict.fromkeys(SECTION_TITLES, "") | {
+            "headline": "Python Developer", "summary": "Generated summary", "languages": "English B2",
+        }
+        openai_request.return_value = io.BytesIO(json.dumps({
+            "status": "completed",
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(generated)}]}],
+        }).encode())
+
+        invalid = self.client.post(detail_url, {"action": "generate_ai_cv", "language": "invalid"})
+        self.assertIsNone(invalid.context["text_form"])
+        openai_request.assert_not_called()
+        result = self.client.post(detail_url, {"action": "generate_ai_cv", "language": "en"})
+        self.assertContains(result, "Generated summary")
+        self.assertFalse(CVVersion.objects.exists())
+        request = openai_request.call_args.args[0]
+        request_data = json.loads(request.data)
+        self.assertEqual(request.full_url, "https://api.openai.com/v1/responses")
+        self.assertFalse(request_data["store"])
+        self.assertTrue(request_data["text"]["format"]["strict"])
+        source_data = json.loads(request_data["input"])
+        self.assertEqual(source_data["language"], "Inglés")
+        self.assertEqual(source_data["vacancy"]["description"], "Build Python APIs.")
+        self.assertEqual(source_data["candidate"]["additional_context"], "Hands-on integrations")
+        for contact in (profile.full_name, profile.email, profile.linkedin_url):
+            self.assertNotIn(contact, request_data["input"])
+
+        edited = generated | {"summary": "Reviewed & edited text", "cv_language": "en", "language": "en"}
+        preview = self.client.post(detail_url, edited | {"action": "preview_ai_cv"})
+        self.assertContains(preview, "Reviewed &amp; edited text", count=2)
+        self.assertContains(preview, "<h3>Professional summary</h3>", html=True)
+        self.assertFalse(CVVersion.objects.exists())
+        self.assertRedirects(
+            self.client.post(detail_url, edited | {"action": "save_ai_cv"}), f"{detail_url}#cv",
+        )
+        application.refresh_from_db()
+        version = application.prepared_cv_version
+        self.assertEqual(version.content["text_sections"]["summary"], edited["summary"])
+        self.assertEqual(version.content["profile"]["email"], profile.email)
+        self.assertTrue(version.pdf.startswith(b"%PDF"))
+        self.assertContains(self.client.get(reverse("cv_version", args=[version.pk])), "Reviewed &amp; edited text")
+        self.assertContains(self.client.get(detail_url), "Reviewed &amp; edited text")
+
+        openai_request.side_effect = TimeoutError
+        failed = self.client.post(detail_url, edited | {
+            "action": "generate_ai_cv", "summary": "Unsaved edit", "language": "es",
+        })
+        self.assertContains(failed, "No se pudo conectar con OpenAI.")
+        self.assertContains(failed, "Unsaved edit")
+        self.assertEqual(CVVersion.objects.count(), 1)
+        self.assertRedirects(self.client.post(detail_url, {"action": "mark_applied"}), detail_url)
+        application.refresh_from_db()
+        self.assertEqual(application.sent_cv_version_id, version.pk)
+        self.assertEqual(self.client.get(reverse("download_cv_version", args=[version.pk])).content, version.pdf)
+
     def test_links_the_selected_cv_from_a_grouped_posting(self):
         original = "https://example.com/jobs/original"
         alias = "https://example.com/jobs/alias"
