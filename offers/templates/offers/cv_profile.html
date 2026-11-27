@@ -8,7 +8,10 @@
 </head>
 <body class="min-h-screen bg-emerald-50 font-sans text-emerald-950">
   <main class="mx-auto max-w-4xl px-5 py-10">
-    <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+    <nav class="flex flex-wrap gap-4" aria-label="Navegación">
+      <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+      <a href="{% url 'pending_applications' %}" class="underline underline-offset-4">Pendientes de aplicar</a>
+    </nav>
     <h1 class="mt-6 text-4xl font-bold tracking-tight">Perfil de CV</h1>
     <p class="mt-2"><a href="{% url 'cv_versions' %}" class="font-semibold underline underline-offset-4">Versiones guardadas</a></p>
     {% if has_profile %}<p class="mt-2"><a href="{% url 'cv_preview' %}" class="font-semibold underline underline-offset-4">Ver vista previa del CV</a></p>{% endif %}

@@ -3,13 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>JobPilot · Mis candidaturas</title>
+  <title>JobPilot · {% if pending %}Pendientes de aplicar{% else %}Mis candidaturas{% endif %}</title>
   <link rel="stylesheet" href="{% static 'offers/jobpilot.css' %}">
 </head>
 <body class="min-h-screen bg-emerald-50 font-sans text-emerald-950">
   <main class="mx-auto max-w-4xl px-5 py-10">
-    <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
-    <h1 class="mt-6 text-4xl font-bold tracking-tight">Mis candidaturas</h1>
+    <nav class="flex flex-wrap gap-4" aria-label="Navegación">
+      <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+      {% if pending %}
+        <a href="{% url 'application_list' %}" class="underline underline-offset-4">Mis candidaturas</a>
+      {% else %}
+        <a href="{% url 'pending_applications' %}" class="underline underline-offset-4">Pendientes de aplicar</a>
+      {% endif %}
+    </nav>
+    <h1 class="mt-6 text-4xl font-bold tracking-tight">{% if pending %}Pendientes de aplicar{% else %}Mis candidaturas{% endif %}</h1>
+    {% if not pending %}
     <form method="get" class="criteria-form mt-6 flex flex-wrap gap-4 rounded-xl border border-emerald-200 bg-white p-5">
       <div>
         <label for="application-status">Estado</label>
@@ -22,11 +30,16 @@
       </div>
       <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Filtrar</button>
     </form>
+    {% endif %}
     <section class="mt-6 space-y-3" aria-label="Candidaturas guardadas">
       {% for application in applications %}
         <article class="space-y-1 rounded-xl border border-emerald-200 bg-white p-5">
-          <h2 class="text-lg font-semibold">{{ application.title }}</h2>
+          <h2 class="text-lg font-semibold">{% if pending %}<a href="{% url 'application_detail' application.pk %}" class="underline underline-offset-4">{{ application.title }}</a>{% else %}{{ application.title }}{% endif %}</h2>
           <p>{{ application.company }} · {{ application.location|default:"Ubicación sin indicar" }}</p>
+          {% if pending %}
+            {% if application.offer_snapshot.modality %}<p>{{ application.offer_snapshot.modality }}</p>{% endif %}
+            {% if application.prepared_cv_version_id %}<p>CV guardado</p>{% endif %}
+          {% else %}
           <p class="text-sm"><strong>{{ application.get_status_display }}</strong> · Fecha de aplicación: {{ application.applied_at|date:"SHORT_DATE_FORMAT" }}</p>
           <a href="{% url 'application_detail' application.pk %}" class="mt-2 inline-block font-semibold underline underline-offset-4">Ver candidatura<span class="sr-only"> de {{ application.title }}</span></a>
           <form method="post" action="{% url 'application_detail' application.pk %}" class="criteria-form mt-2 flex flex-wrap gap-3">
@@ -43,9 +56,12 @@
             </div>
             <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Guardar estado</button>
           </form>
+          {% endif %}
         </article>
       {% empty %}
-        {% if selected_status %}
+        {% if pending %}
+          <p>Las ofertas que marques con «Me interesa» aparecerán aquí.</p>
+        {% elif selected_status %}
           <p>No tienes candidaturas en este estado.</p>
           <a href="{% url 'application_list' %}" class="underline underline-offset-4">Ver todos los estados</a>
         {% else %}

@@ -81,6 +81,58 @@ class CVProfileTests(TestCase):
 
 
 class ApplicationTrackingTests(TestCase):
+    def test_links_the_selected_cv_from_a_grouped_posting(self):
+        original = "https://example.com/jobs/original"
+        alias = "https://example.com/jobs/alias"
+        application = record_application({
+            "offer": {
+                "title": "Backend Developer", "company": "Example", "location": "España",
+                "source": "Greenhouse", "url": original,
+            },
+            "links": [("Greenhouse", original), ("Lever", alias)],
+        })
+        detail_url = reverse("application_detail", args=[application.pk])
+        self.assertContains(self.client.get(detail_url), "Guarda una versión del CV para esta oferta")
+
+        sent = CVVersion.objects.create(
+            posting_key=posting_identity(alias), fingerprint="sent",
+            offer_title=application.title, company=application.company, content={}, pdf=b"%PDF-sent",
+        )
+        self.assertRedirects(self.client.post(detail_url, {
+            "action": "save_cv_version", "sent_cv_version": sent.pk,
+        }), detail_url)
+
+        CVVersion.objects.create(
+            posting_key=posting_identity(alias), fingerprint="newer",
+            offer_title=application.title, company=application.company, content={}, pdf=b"%PDF-newer",
+        )
+        unrelated = CVVersion.objects.create(
+            posting_key=posting_identity("https://example.com/jobs/other"), fingerprint="other",
+            offer_title="Other role", company="Example", content={}, pdf=b"%PDF-other",
+        )
+        invalid = self.client.post(detail_url, {
+            "action": "save_cv_version", "sent_cv_version": unrelated.pk,
+        })
+        self.assertContains(invalid, "Selecciona una versión guardada para esta oferta.")
+        self.assertNotContains(invalid, f"CV-{unrelated.pk} ·")
+        self.assertRedirects(self.client.post(detail_url, {"status": "interview"}), detail_url)
+
+        application.refresh_from_db()
+        self.assertEqual(application.sent_cv_version, sent)
+        self.assertEqual(application.status, "interview")
+        pdf_url = reverse("download_cv_version", args=[sent.pk])
+        detail = self.client.get(detail_url)
+        self.assertContains(detail, reverse("cv_version", args=[sent.pk]))
+        self.assertContains(detail, pdf_url)
+        self.assertEqual(self.client.get(pdf_url).content, b"%PDF-sent")
+
+        self.assertRedirects(self.client.post(detail_url, {
+            "action": "save_cv_version", "sent_cv_version": "",
+        }), detail_url)
+        application.refresh_from_db()
+        self.assertIsNone(application.sent_cv_version_id)
+        self.assertNotContains(self.client.get(detail_url), pdf_url)
+
     def test_application_detail_updates_status_and_keeps_chronological_history(self):
         application = record_application({"offer": {
             "title": "Backend Developer", "company": "Example", "location": "Madrid",
@@ -307,14 +359,13 @@ class MultiSourceSearchTests(TestCase):
         self.assertEqual(matches[1]["offer"]["location"], "Milan / Madrid")
         self.assertContains(response, "Greenhouse / Lever")
 
-    def test_tailors_and_approves_a_cv_from_a_search_result(self):
+    def test_existing_offer_draft_route_preserves_approved_versions(self):
         profile = CVProfile.objects.create(pk=1, full_name="Example Name", summary="Base summary", skills="Python\nDesign")
         relevant = profile.projects.create(name="Payments integration", description="Connect banking providers.")
         other = profile.projects.create(name="Illustration", description="Create editorial illustrations.")
         offer = self.greenhouse_job | {"content": "Work on payments integration with banking providers."}
-        results = self.run_search(greenhouse=[offer], lever=[])
+        self.run_search(greenhouse=[offer], lever=[])
         url = reverse("cv_offer_draft", args=[posting_identity(offer["absolute_url"])])
-        self.assertContains(results, url)
         draft = self.client.get(url)
         self.assertEqual(draft.context["draft_form"].initial["projects"], [str(relevant.pk)])
         self.assertEqual(draft.context["skills"], ["Python"])
@@ -363,32 +414,65 @@ class MultiSourceSearchTests(TestCase):
                 self.assertEqual(response.context["matches"][0]["sources"], [remaining])
                 self.assertContains(response, f"{provider} · {company}. El servicio respondió con HTTP 503.")
 
-    def test_mark_grouped_result_as_applied_and_open_details(self):
+    def test_prepare_and_submit_a_saved_offer(self):
         response = self.run_search()
-        mark_url = reverse("mark_application", args=[posting_identity(self.posting_url)])
-        self.assertContains(response, "Marcar como aplicada")
-        self.assertContains(response, mark_url)
-        self.assertEqual(self.client.get(mark_url).status_code, 405)
+        interest_url = reverse("save_interested_offer", args=[posting_identity(self.posting_url)])
+        pending_url = reverse("pending_applications")
+        submitted_url = reverse("application_list")
+        self.assertContains(response, "Me interesa")
+        self.assertContains(response, interest_url)
+        self.assertEqual(self.client.get(interest_url).status_code, 405)
 
-        detail = self.client.post(mark_url, follow=True)
+        self.assertRedirects(self.client.post(interest_url), pending_url)
+        self.assertRedirects(self.client.post(interest_url), pending_url)
         application = Application.objects.get()
         detail_url = reverse("application_detail", args=[application.pk])
-        self.assertRedirects(detail, detail_url)
+        self.assertIsNone(application.applied_at)
+        self.assertFalse(application.status_history.exists())
+        self.assertContains(self.client.get(pending_url), detail_url)
+        self.assertNotContains(self.client.get(submitted_url), detail_url)
+        self.assertContains(self.run_search(greenhouse=[]), detail_url)
+        self.run_search(greenhouse=[], lever=[])
+        self.assertEqual(self.client.post(interest_url).status_code, 404)
+
+        detail = self.client.get(detail_url)
         self.assertContains(detail, "Python Engineer")
-        self.assertContains(detail, "Fecha de aplicación")
         self.assertContains(detail, "Ver anuncio original en Greenhouse")
         self.assertContains(detail, "Ver anuncio original en Lever")
-        self.assertRedirects(self.client.post(mark_url), detail_url)
-        self.assertEqual(application.status_history.count(), 1)
-        self.assertEqual(Application.objects.count(), 1)
+        self.assertContains(detail, application.offer_snapshot["modality"])
+        self.assertContains(detail, "Completa tu perfil de CV")
+        profile = CVProfile.objects.create(pk=1, full_name="Example Candidate", skills="Python\nSQL")
+        prepared_data = {"summary": "CV for this vacancy", "skills": ["Python"]}
+        preview = self.client.post(detail_url, {"action": "preview_cv", **prepared_data})
+        self.assertContains(preview, '<article class="cv-sheet mt-3">')
+        self.assertFalse(CVVersion.objects.exists())
+        self.assertRedirects(self.client.post(detail_url, {
+            "action": "save_prepared_cv", **prepared_data,
+        }), detail_url + "#cv")
+        application.refresh_from_db()
+        prepared = application.prepared_cv_version
+        self.assertEqual(prepared.content["profile"]["summary"], "CV for this vacancy")
+        self.assertEqual(prepared.content["skills"], ["Python"])
+        self.assertIsNone(application.sent_cv_version_id)
+        pdf_url = reverse("download_cv_version", args=[prepared.pk])
+        self.assertContains(self.client.get(detail_url), pdf_url)
+        pdf = self.client.get(pdf_url).content
+        self.assertTrue(pdf.startswith(b"%PDF"))
 
-        later = self.run_search(greenhouse=[])
-        self.assertContains(later, "Aplicada")
-        self.assertContains(later, detail_url)
-        self.assertNotContains(later, "Marcar como aplicada")
-        self.run_search(greenhouse=[], lever=[])
-        self.assertEqual(self.client.post(mark_url).status_code, 404)
-        self.assertEqual(self.client.get(detail_url).status_code, 200)
+        self.assertRedirects(self.client.post(detail_url, {"action": "mark_applied"}), detail_url)
+        self.assertRedirects(self.client.post(detail_url, {"action": "mark_applied"}), detail_url)
+        self.assertNotContains(self.client.get(pending_url), detail_url)
+        self.assertContains(self.client.get(submitted_url), detail_url)
+        application.refresh_from_db()
+        self.assertEqual(application.sent_cv_version_id, prepared.pk)
+        event = application.status_history.get()
+        self.assertEqual(event.status, "applied")
+        self.assertEqual(event.occurred_at, application.applied_at)
+        self.assertContains(self.client.get(detail_url), "Aplicada · Pendiente de respuesta")
+        self.assertContains(self.client.get(detail_url), pdf_url)
+        profile.summary = "Updated base profile"
+        profile.save(update_fields=["summary"])
+        self.assertEqual(self.client.get(pdf_url).content, pdf)
 
     @override_settings(LEVER_BOARDS={"example": ("Company A", "eu")})
     def test_cross_source_duplicate_keeps_both_links_and_history(self):

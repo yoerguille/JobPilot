@@ -2,18 +2,25 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
 from django.conf import settings
+from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from .applications import ConflictingApplications, application_links, change_application_status, record_application
+from .applications import (
+    ConflictingApplications, application_links, change_application_status, mark_application_submitted,
+    record_application,
+)
 from .connectors import greenhouse, lever
 from .connectors.common import BoardError
-from .forms import ApplicationStatusForm, CriteriaForm
+from .cv import CVOfferDraftForm, get_or_create_cv_version
+from .forms import ApplicationStatusForm, CriteriaForm, SentCVVersionForm
 from .history import save_search
 from .matching import find_matches, posting_identity
-from .models import Application, ApplicationPosting, ApplicationStatus, Criteria, SearchSnapshot
+from .models import (
+    Application, ApplicationPosting, ApplicationStatus, Criteria, CVOfferDraft, CVProfile, CVVersion, SearchSnapshot,
+)
 
 
 def search(request):
@@ -83,43 +90,123 @@ def search(request):
 
 @require_POST
 def mark_application(request, posting):
+    return save_search_application(posting, interested=False)
+
+
+@require_POST
+def save_interested_offer(request, posting):
+    return save_search_application(posting, interested=True)
+
+
+def save_search_application(posting, *, interested):
     snapshot = get_object_or_404(SearchSnapshot, pk=1)
     for match in snapshot.data["matches"]:
         if posting_identity(match["offer"]["url"]) == posting:
             try:
-                application = record_application(match)
+                application = record_application(match, interested=interested)
             except ConflictingApplications:
                 return HttpResponse("Esta vacante coincide con varias candidaturas guardadas.", status=409)
+            if interested and application.status == ApplicationStatus.INTERESTED:
+                return redirect("pending_applications")
             return redirect("application_detail", pk=application.pk)
     raise Http404("La oferta ya no está en los resultados de la última búsqueda.")
 
 
 def application_list(request):
     status = request.GET.get("estado", "")
-    applications = Application.objects.order_by("-applied_at", "-pk")
-    if status in ApplicationStatus.values:
+    statuses = ApplicationStatus.submitted_choices()
+    applications = Application.objects.exclude(status=ApplicationStatus.INTERESTED).order_by("-applied_at", "-pk")
+    if status in dict(statuses):
         applications = applications.filter(status=status)
     else:
         status = ""
     return render(request, "offers/application_list.html", {
         "applications": applications,
         "selected_status": status,
-        "statuses": ApplicationStatus.choices,
+        "statuses": statuses,
+    })
+
+
+def pending_applications(request):
+    return render(request, "offers/application_list.html", {
+        "applications": Application.objects.filter(status=ApplicationStatus.INTERESTED).order_by("-pk"),
+        "pending": True,
     })
 
 
 def application_detail(request, pk):
     application = get_object_or_404(Application, pk=pk)
+    post_data = request.POST if request.method == "POST" else None
+    action = post_data.get("action") if post_data is not None else None
+    if application.status == ApplicationStatus.INTERESTED:
+        return pending_application_detail(request, application, post_data, action)
+
+    if action == "mark_applied":
+        return redirect("application_detail", pk=pk)
+
+    updating_cv = action == "save_cv_version"
     form = ApplicationStatusForm(
-        request.POST if request.method == "POST" else None,
+        None if updating_cv else post_data,
         initial={"status": application.status},
     )
-    if request.method == "POST" and form.is_valid():
+    cv_form = SentCVVersionForm(post_data if updating_cv else None, application=application)
+    if updating_cv and cv_form.is_valid():
+        application.sent_cv_version = cv_form.cleaned_data["sent_cv_version"]
+        application.save(update_fields=["sent_cv_version"])
+        return redirect("application_detail", pk=application.pk)
+
+    if form.is_valid():
         change_application_status(application.pk, form.cleaned_data["status"])
         if request.POST.get("return_to") == "application_list":
             status_filter = request.POST.get("estado", "")
-            query = {"estado": status_filter} if status_filter in ApplicationStatus.values else None
+            query = {"estado": status_filter} if status_filter in dict(ApplicationStatus.submitted_choices()) else None
             return redirect(reverse("application_list", query=query))
         return redirect("application_detail", pk=application.pk)
 
-    return render(request, "offers/application_detail.html", {"application": application, "status_form": form})
+    return render(request, "offers/application_detail.html", {
+        "application": application,
+        "status_form": form,
+        "cv_form": cv_form,
+        "has_cv_versions": cv_form.fields["sent_cv_version"].queryset.exists(),
+    })
+
+
+def pending_application_detail(request, application, post_data, action):
+    if action == "mark_applied":
+        mark_application_submitted(application.pk)
+        return redirect("application_detail", pk=application.pk)
+
+    snapshot = application.offer_snapshot
+    profile = CVProfile.objects.filter(pk=1).first()
+    context = {"application": application, "pending": True}
+    if profile is not None:
+        editing = action in {"preview_cv", "save_prepared_cv"}
+        draft_form = CVOfferDraftForm(
+            post_data if editing else None, profile, {"title": application.title, **snapshot},
+        )
+        if application.prepared_cv_version_id:
+            prepared = CVVersion.objects.only("content").get(pk=application.prepared_cv_version_id)
+            draft_form.load_selection(prepared.content)
+        else:
+            draft = CVOfferDraft.objects.filter(pk=snapshot["posting_key"]).first()
+            if draft:
+                draft_form.load_selection(draft.content)
+        selection = draft_form.initial
+        if draft_form.is_valid():
+            selection = draft_form.cleaned_data
+            if action == "save_prepared_cv":
+                content = draft_form.content(profile, selection)
+                with transaction.atomic():
+                    version = get_or_create_cv_version(
+                        snapshot["posting_key"], application.title, application.company, content,
+                    )
+                    updated = Application.objects.filter(pk=application.pk, status=ApplicationStatus.INTERESTED).update(
+                        prepared_cv_version=version,
+                    )
+                    if not updated:
+                        transaction.set_rollback(True)
+                return redirect(reverse("application_detail", args=[application.pk]) + "#cv")
+        context["draft_form"] = draft_form
+        if action == "preview_cv" and not draft_form.errors:
+            context.update(draft_form.content(profile, selection), show_preview=True)
+    return render(request, "offers/application_detail.html", context)

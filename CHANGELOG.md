@@ -26,3 +26,5 @@
 - Added a single-column CV template and a preview that uses the saved profile.
 - Added editable CV drafts for search results, with profile-based suggestions and local approval.
 - Added saved CV versions and downloadable PDFs that preserve the approved content.
+- Added a sent CV version selector to application details, with links to the saved version and its PDF.
+- Added a pending applications list, saved offer summaries, an inline CV editor with automatic version linking, and a submission action that records the exact CV sent.
