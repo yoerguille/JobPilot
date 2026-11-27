@@ -40,12 +40,29 @@
       {% if draft_form %}
         <form method="post" action="#cv" class="criteria-form space-y-3">
           {% csrf_token %}
+          {{ generation_form.as_div }}
+          <button type="submit" name="action" value="generate_ai_cv" formnovalidate class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Generar borrador con IA</button>
+          {% if text_form %}
+            <h3 class="text-lg font-semibold">Editar borrador</h3>
+            {% if text_form.language_label %}<p>Idioma del borrador: {{ text_form.language_label }}</p>{% endif %}
+            {{ text_form.as_div }}
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" name="action" value="preview_ai_cv" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Actualizar vista previa</button>
+              <button type="submit" name="action" value="save_ai_cv" class="cursor-pointer rounded-md border border-emerald-800 bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900">Guardar CV</button>
+            </div>
+          {% endif %}
+        </form>
+        <details{% if manual_editing %} open{% endif %}>
+          <summary class="cursor-pointer">Adaptar CV manualmente</summary>
+        <form method="post" action="#cv" class="criteria-form space-y-3">
+          {% csrf_token %}
           {{ draft_form.as_div }}
           <div class="flex flex-wrap gap-3">
             <button type="submit" name="action" value="preview_cv" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Actualizar vista previa</button>
             <button type="submit" name="action" value="save_prepared_cv" class="cursor-pointer rounded-md border border-emerald-800 bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900">Guardar CV</button>
           </div>
         </form>
+        </details>
         {% if show_preview %}{% include "offers/cv_sheet.html" %}{% endif %}
       {% else %}
         <p><a href="{% url 'cv_profile' %}" class="underline underline-offset-4">Completa tu perfil de CV</a> para adaptarlo a esta oferta.</p>

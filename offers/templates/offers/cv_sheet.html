@@ -2,15 +2,22 @@
   <header>
     <h2>{{ profile.full_name }}</h2>
     {% if profile.headline %}<p class="cv-headline">{{ profile.headline }}</p>{% endif %}
-    {% if profile.location or profile.email or profile.phone or profile.portfolio_url %}
+    {% if profile.location or profile.email or profile.phone or profile.portfolio_url or profile.linkedin_url or profile.github_url %}
       <ul class="cv-contact">
         {% if profile.location %}<li>{{ profile.location }}</li>{% endif %}
         {% if profile.email %}<li><a href="mailto:{{ profile.email }}">{{ profile.email }}</a></li>{% endif %}
         {% if profile.phone %}<li>{{ profile.phone }}</li>{% endif %}
         {% if profile.portfolio_url %}<li><a href="{{ profile.portfolio_url }}">{{ profile.portfolio_url }}</a></li>{% endif %}
+        {% if profile.linkedin_url %}<li><a href="{{ profile.linkedin_url }}">LinkedIn</a></li>{% endif %}
+        {% if profile.github_url %}<li><a href="{{ profile.github_url }}">GitHub</a></li>{% endif %}
       </ul>
     {% endif %}
   </header>
+  {% if cv_sections %}
+    {% for label, text in cv_sections %}
+      <section><h3>{{ label }}</h3><p class="cv-description">{{ text }}</p></section>
+    {% endfor %}
+  {% else %}
   {% if profile.summary %}
     <section><h3>Resumen profesional</h3><p class="cv-description">{{ profile.summary }}</p></section>
   {% endif %}
@@ -54,5 +61,6 @@
       <h3>Habilidades</h3>
       <ul class="cv-contact">{% for skill in skills %}<li>{{ skill }}</li>{% endfor %}</ul>
     </section>
+  {% endif %}
   {% endif %}
 </article>

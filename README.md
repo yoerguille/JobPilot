@@ -60,6 +60,12 @@ After saving, select **Preview CV** (`Ver vista previa del CV`) to see a single-
 
 Use **Tailor CV** (`Adaptar CV`) in a pending application. Review the suggested entries, edit the summary, and use **Update preview** (`Actualizar vista previa`) to review the result. **Save CV** (`Guardar CV`) stores the content and PDF and links the prepared version to the application automatically.
 
+To enable AI drafting, copy `.env.example` to `.env` in the project root, or open the existing `.env` file. Fill in `OPENAI_API_KEY=` with your key and restart Django. Git ignores `.env`. Values already set in the server environment take precedence over the file. The default model is `gpt-5-mini`. Set `JOBPILOT_OPENAI_MODEL` to override it with a Responses API model that supports Structured Outputs.
+
+In a pending application, choose Spanish or English and select **Generate AI draft** (`Generar borrador con IA`). JobPilot sends professional profile text, additional notes, and the saved offer description to OpenAI. The structured contact and profile-link fields are added locally when building the preview and PDF.
+
+Edit any section and select **Update preview** (`Actualizar vista previa`) or **Save CV** (`Guardar CV`). Generation and preview leave the current saved version intact until you save the edited text. Use **Tailor CV manually** (`Adaptar CV manualmente`) for the profile-selection workflow.
+
 Marking the application as applied records the prepared version as the sent CV. Open it or download its PDF from the same detail page. If you used a different version, the application lets you correct the link using saved versions from its original postings. All saved versions are also available under **Saved versions** (`Versiones guardadas`) in the CV profile.
 
 ## Build the styles
