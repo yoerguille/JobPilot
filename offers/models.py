@@ -24,12 +24,17 @@ class SearchSnapshot(models.Model):
 
 
 class ApplicationStatus(models.TextChoices):
-    APPLIED = "applied", "Aplicada"
+    INTERESTED = "interested", "Pendiente de aplicar"
+    APPLIED = "applied", "Aplicada · Pendiente de respuesta"
     INTERVIEW = "interview", "Entrevista"
     TECHNICAL_INTERVIEW = "technical_interview", "Entrevista técnica"
     TECHNICAL_ASSESSMENT = "technical_assessment", "Prueba técnica"
     OFFER_RECEIVED = "offer_received", "Oferta recibida"
     REJECTED = "rejected", "Descartada"
+
+    @classmethod
+    def submitted_choices(cls):
+        return [(value, label) for value, label in cls.choices if value != cls.INTERESTED]
 
 
 class Application(models.Model):
@@ -37,9 +42,14 @@ class Application(models.Model):
     company = models.TextField()
     location = models.TextField(blank=True)
     original_links = models.JSONField()
-    applied_at = models.DateTimeField(default=timezone.now)
+    offer_snapshot = models.JSONField(default=dict, blank=True)
+    applied_at = models.DateTimeField(default=timezone.now, null=True, blank=True)
     status = models.CharField(
         max_length=24, choices=ApplicationStatus.choices, default=ApplicationStatus.APPLIED,
+    )
+    sent_cv_version = models.ForeignKey("CVVersion", on_delete=models.PROTECT, null=True, blank=True)
+    prepared_cv_version = models.ForeignKey(
+        "CVVersion", on_delete=models.PROTECT, null=True, blank=True, related_name="+",
     )
 
 

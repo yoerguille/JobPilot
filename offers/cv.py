@@ -156,6 +156,12 @@ class CVOfferDraftForm(forms.Form):
         content["skills"] = [entry["name"] for entry in content["skills"]]
         return content
 
+    def load_selection(self, content):
+        self.initial["summary"] = content["profile"]["summary"]
+        for section in ("experience", "projects", "education"):
+            self.initial[section] = [str(entry["id"]) for entry in content[section]]
+        self.initial["skills"] = content["skills"]
+
 
 @require_http_methods(["GET", "POST"])
 def cv_offer_draft(request, posting):
@@ -180,10 +186,7 @@ def cv_offer_draft(request, posting):
     data = request.POST if request.method == "POST" else None
     form = CVOfferDraftForm(data, profile, offer)
     if approved:
-        form.initial["summary"] = approved.content["profile"]["summary"]
-        for section in ("experience", "projects", "education"):
-            form.initial[section] = [str(entry["id"]) for entry in approved.content[section]]
-        form.initial["skills"] = approved.content["skills"]
+        form.load_selection(approved.content)
     selection = form.initial
     if form.is_valid():
         selection = form.cleaned_data
@@ -197,9 +200,24 @@ def cv_offer_draft(request, posting):
     })
 
 
-def draft_fingerprint(draft):
-    payload = json.dumps([draft.offer_title, draft.company, draft.content], sort_keys=True)
+def cv_fingerprint(title, company, content):
+    payload = json.dumps([title, company, content], sort_keys=True)
     return sha256(payload.encode()).hexdigest()
+
+
+def draft_fingerprint(draft):
+    return cv_fingerprint(draft.offer_title, draft.company, draft.content)
+
+
+def get_or_create_cv_version(posting, title, company, content):
+    version, _ = CVVersion.objects.get_or_create(
+        posting_key=posting, fingerprint=cv_fingerprint(title, company, content),
+        defaults={
+            "offer_title": title, "company": company, "content": content,
+            "pdf": lambda: render_cv_pdf(content),
+        },
+    )
+    return version
 
 
 @require_POST
@@ -208,13 +226,7 @@ def save_cv_version(request, posting):
     fingerprint = draft_fingerprint(draft)
     if request.POST.get("fingerprint") != fingerprint:
         return HttpResponse("El borrador ha cambiado. Vuelve a abrirlo antes de guardar la versión.", status=409)
-    version, _ = CVVersion.objects.get_or_create(
-        posting_key=posting, fingerprint=fingerprint,
-        defaults={
-            "offer_title": draft.offer_title, "company": draft.company, "content": draft.content,
-            "pdf": lambda: render_cv_pdf(draft.content),
-        },
-    )
+    version = get_or_create_cv_version(posting, draft.offer_title, draft.company, draft.content)
     return redirect("cv_version", pk=version.pk)
 
 

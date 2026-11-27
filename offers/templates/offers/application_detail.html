@@ -10,18 +10,82 @@
   <main class="mx-auto max-w-4xl px-5 py-10">
     <nav class="flex flex-wrap gap-4" aria-label="Navegación">
       <a href="{% url 'search' %}" class="underline underline-offset-4">Volver a la búsqueda</a>
+      <a href="{% url 'pending_applications' %}" class="underline underline-offset-4">Pendientes de aplicar</a>
       <a href="{% url 'application_list' %}" class="underline underline-offset-4">Mis candidaturas</a>
     </nav>
     <article class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5">
       <h1 class="text-xl font-semibold">{{ application.title }}</h1>
       <p>{{ application.company }} · {{ application.location|default:"Ubicación sin indicar" }}</p>
-      <p><strong>{{ application.get_status_display }}</strong> · Fecha de aplicación: {{ application.applied_at|date:"SHORT_DATE_FORMAT" }}</p>
+      <p><strong>{{ application.get_status_display }}</strong>{% if application.applied_at %} · Fecha de aplicación: {{ application.applied_at|date:"SHORT_DATE_FORMAT" }}{% endif %}</p>
+      {% with offer=application.offer_snapshot %}
+        {% if offer.modality %}<p>{{ offer.modality }}{% if offer.geography %} · {{ offer.geography }}{% endif %}</p>{% endif %}
+        {% if offer.experience %}<p>{{ offer.experience }}</p>{% endif %}
+        {% if offer.description %}<p>{{ offer.description|truncatewords:45 }}</p>{% endif %}
+      {% endwith %}
       <ul class="space-y-1">
         {% for source, url in application.original_links %}
           <li><a href="{{ url }}" target="_blank" rel="noopener" class="underline underline-offset-4">Ver anuncio original en {{ source }}<span class="sr-only"> (se abre en una pestaña nueva)</span></a></li>
         {% endfor %}
       </ul>
     </article>
+    {% if pending %}
+    <section id="cv" class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="cv-heading">
+      <h2 id="cv-heading" class="text-lg font-semibold">Adaptar CV</h2>
+      {% if application.prepared_cv_version_id %}
+        <div class="flex flex-wrap gap-4">
+          <a href="{% url 'cv_version' application.prepared_cv_version_id %}" class="underline underline-offset-4">Abrir CV guardado</a>
+          <a href="{% url 'download_cv_version' application.prepared_cv_version_id %}" class="underline underline-offset-4">Descargar PDF</a>
+        </div>
+      {% endif %}
+      {% if draft_form %}
+        <form method="post" action="#cv" class="criteria-form space-y-3">
+          {% csrf_token %}
+          {{ draft_form.as_div }}
+          <div class="flex flex-wrap gap-3">
+            <button type="submit" name="action" value="preview_cv" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Actualizar vista previa</button>
+            <button type="submit" name="action" value="save_prepared_cv" class="cursor-pointer rounded-md border border-emerald-800 bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900">Guardar CV</button>
+          </div>
+        </form>
+        {% if show_preview %}{% include "offers/cv_sheet.html" %}{% endif %}
+      {% else %}
+        <p><a href="{% url 'cv_profile' %}" class="underline underline-offset-4">Completa tu perfil de CV</a> para adaptarlo a esta oferta.</p>
+      {% endif %}
+    </section>
+    <section class="mt-6 space-y-3" aria-labelledby="apply-heading">
+      <h2 id="apply-heading" class="text-lg font-semibold">Registrar el envío</h2>
+      <p>Marca la oferta como aplicada cuando hayas enviado tu candidatura en la web original.</p>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="action" value="mark_applied" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Marcar como aplicada</button>
+      </form>
+    </section>
+    {% else %}
+    <section class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="sent-cv-heading">
+      <h2 id="sent-cv-heading" class="text-lg font-semibold">CV enviado</h2>
+      {% if application.sent_cv_version_id %}
+        <div class="flex flex-wrap gap-4">
+          <a href="{% url 'cv_version' application.sent_cv_version_id %}" class="underline underline-offset-4">Abrir versión enviada</a>
+          <a href="{% url 'download_cv_version' application.sent_cv_version_id %}" class="underline underline-offset-4">Descargar PDF</a>
+        </div>
+      {% endif %}
+      {% if has_cv_versions or cv_form.is_bound %}
+        <details{% if cv_form.is_bound or not application.sent_cv_version_id %} open{% endif %}>
+          <summary class="cursor-pointer">{% if application.sent_cv_version_id %}Corregir versión enviada{% else %}Vincular versión enviada{% endif %}</summary>
+        <form method="post" class="criteria-form space-y-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_cv_version">
+          <div>
+            {{ cv_form.sent_cv_version.label_tag }}
+            {{ cv_form.sent_cv_version }}
+            {{ cv_form.sent_cv_version.errors }}
+          </div>
+          <button type="submit" class="cursor-pointer rounded-md border border-emerald-800 px-4 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">Guardar versión enviada</button>
+        </form>
+        </details>
+      {% else %}
+        <p>Guarda una versión del CV para esta oferta antes de vincularla.</p>
+      {% endif %}
+    </section>
     <section class="mt-6 space-y-3 rounded-xl border border-emerald-200 bg-white p-5" aria-labelledby="status-heading">
       <h2 id="status-heading" class="text-lg font-semibold">Cambiar estado</h2>
       <form method="post" class="criteria-form space-y-3">
@@ -44,6 +108,7 @@
         {% endfor %}
       </ol>
     </section>
+    {% endif %}
   </main>
 </body>
 </html>
